@@ -14,3 +14,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - On-device TTS queue (`react-native-tts`).
 - Driving and walking flows, including opening-hours (Places) and rain caveats (Open-Meteo).
 - Route corridor pre-fetch via Directions API, LLM call cap, and cache-first offline fallback.
+- Gradle 9 compatibility patch for `react-native-tts` (replace removed `jcenter()`).
+- Debug APK build via `./gradlew assembleDebug` (`android/app/build/outputs/apk/debug/app-debug.apk`).
