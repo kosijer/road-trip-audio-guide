@@ -1,0 +1,8 @@
+# Secrets — never commit real keys
+.env
+.env.local
+.env.*.local
+
+# OS / tooling
+.DS_Store
+.qodo/
