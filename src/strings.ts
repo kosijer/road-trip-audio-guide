@@ -16,6 +16,9 @@ export const s = {
   permissionNeeded: 'Potrebna je dozvola za lokaciju da bi vodič radio.',
   notificationPermission: 'Dozvoli obaveštenja da bi vožnja ostala aktivna u pozadini.',
   noPoi: 'U blizini trenutno nema dovoljno zanimljivih mesta.',
+  locationFailed:
+    'Ne mogu da odredim lokaciju. Uključite lokaciju i pokušajte ponovo.',
+  llmFailed: 'Nisam uspeo da napravim priču. Pokušajte ponovo.',
   offlineSkip: 'Nema mreže — preskačem ovaj interval.',
   llmCap: 'Dostignut je limit priča za ovu vožnju.',
   ttsMissing:

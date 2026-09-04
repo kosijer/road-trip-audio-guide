@@ -130,8 +130,9 @@ export async function drivingTick(): Promise<void> {
     let location: LocationSample;
     try {
       location = await getCurrentLocation();
-    } catch {
-      await patch({ message: s.offlineSkip });
+    } catch (error) {
+      console.warn('location failed', error);
+      await patch({ message: s.locationFailed });
       return;
     }
     const moving = isMoving(location.speedKmh);
@@ -167,8 +168,9 @@ export async function walkingNow(): Promise<TripStatus> {
   let location: LocationSample;
   try {
     location = await getCurrentLocation();
-  } catch {
-    return patch({ message: s.offlineSkip });
+  } catch (error) {
+    console.warn('location failed', error);
+    return patch({ message: s.locationFailed });
   }
   await patch({ lastLocation: location });
   await maybeNarrate(location, 'walking');
@@ -184,12 +186,20 @@ async function maybeNarrate(
   let pois: Poi[] = [];
   try {
     pois = await cacheFirstDiscover(location, radius);
-  } catch {
-    await patch({ message: s.offlineSkip });
+    if (mode === 'walking' && pois.length === 0) {
+      pois = await cacheFirstDiscover(location, Math.max(radius, 3000));
+    }
+  } catch (error) {
+    console.warn('poi discovery failed', error);
+    await patch({
+      message: `${s.offlineSkip} (${String(error).slice(0, 80)})`,
+    });
     return;
   }
   const narrated = new Set(await getNarratedIds());
-  let candidates = rankPois(pois.filter(poi => !narrated.has(poi.id)));
+  let candidates = rankPois(
+    mode === 'walking' ? pois : pois.filter(poi => !narrated.has(poi.id)),
+  );
   if (candidates.length === 0) {
     await patch({ message: s.noPoi });
     return;
@@ -235,8 +245,9 @@ async function maybeNarrate(
       text = await generateNarration(selected, mode, extras);
       await incrementLlmCalls();
       await saveNarration(cacheKey, text);
-    } catch {
-      await patch({ message: s.offlineSkip });
+    } catch (error) {
+      console.warn('narration failed', error);
+      await patch({ message: s.llmFailed });
       return;
     }
   }

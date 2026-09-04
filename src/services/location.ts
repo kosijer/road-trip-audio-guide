@@ -3,7 +3,7 @@ import Geolocation from '@react-native-community/geolocation';
 import type { LocationSample } from '../types';
 
 Geolocation.setRNConfiguration({
-  skipPermissionRequests: false,
+  skipPermissionRequests: true,
   authorizationLevel: 'whenInUse',
   locationProvider: 'auto',
 });
@@ -45,7 +45,11 @@ export async function requestLocationPermission(): Promise<boolean> {
   return true;
 }
 
-export function getCurrentLocation(timeoutMs = 15_000): Promise<LocationSample> {
+function readPosition(
+  enableHighAccuracy: boolean,
+  timeoutMs: number,
+  maximumAge: number,
+): Promise<LocationSample> {
   return new Promise((resolve, reject) => {
     Geolocation.getCurrentPosition(
       pos => {
@@ -57,12 +61,31 @@ export function getCurrentLocation(timeoutMs = 15_000): Promise<LocationSample> 
           accuracyM: pos.coords.accuracy,
         });
       },
-      error => reject(new Error(error.message || 'location_failed')),
+      error =>
+        reject(
+          new Error(
+            `${error.code ?? ''} ${error.message || 'location_failed'}`.trim(),
+          ),
+        ),
       {
-        enableHighAccuracy: true,
+        enableHighAccuracy,
         timeout: timeoutMs,
-        maximumAge: 8_000,
+        maximumAge,
       },
     );
   });
+}
+
+export async function getCurrentLocation(): Promise<LocationSample> {
+  try {
+    return await readPosition(false, 10_000, 60_000);
+  } catch (networkErr) {
+    try {
+      return await readPosition(true, 20_000, 5_000);
+    } catch (gpsErr) {
+      throw new Error(
+        `location_failed: ${String(networkErr)}; ${String(gpsErr)}`,
+      );
+    }
+  }
 }

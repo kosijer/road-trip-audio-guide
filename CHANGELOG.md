@@ -16,3 +16,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Route corridor pre-fetch via Directions API, LLM call cap, and cache-first offline fallback.
 - Gradle 9 compatibility patch for `react-native-tts` (replace removed `jcenter()`).
 - Debug APK build via `./gradlew assembleDebug` (`android/app/build/outputs/apk/debug/app-debug.apk`).
+- Walking mode now uses network location indoors (GPS timeout was showing a false "no network" error), sends a Wikipedia-compliant user agent, and expands the search radius if nothing is found nearby.

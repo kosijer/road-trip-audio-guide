@@ -2,7 +2,7 @@ import { config } from '../../config';
 import { haversineM } from '../../geo';
 import { fetchJsonSilent } from '../http';
 import type { GeoPoint, Poi } from '../../types';
-import { inferFlags, scoreKeywords } from './score';
+import { inferFlags } from './score';
 
 type GeoSearch = {
   query?: {
@@ -87,6 +87,6 @@ export async function searchWikipedia(
         ...flags,
       };
     })
-    .filter(poi => poi.summary.length > 40 || scoreKeywords(poi.title, poi.summary) > 0)
+    .filter(poi => poi.title.length > 0)
     .sort((a, b) => (a.distanceM ?? 0) - (b.distanceM ?? 0));
 }

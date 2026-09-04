@@ -11,7 +11,7 @@ export class HttpError extends Error {
 export async function fetchJson<T>(
   url: string,
   init: RequestInit = {},
-  timeoutMs = 12_000,
+  timeoutMs = 15_000,
 ): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -20,13 +20,18 @@ export async function fetchJson<T>(
       ...init,
       signal: controller.signal,
       headers: {
-        Accept: 'application/json',
+        Accept: '*/*',
         'User-Agent': config.wikipediaUserAgent,
+        'Api-User-Agent': config.wikipediaUserAgent,
         ...(init.headers || {}),
       },
     });
     if (!response.ok) {
-      throw new HttpError(`HTTP ${response.status} for ${url}`, response.status);
+      const body = await response.text();
+      throw new HttpError(
+        `HTTP ${response.status} ${body.slice(0, 180)}`,
+        response.status,
+      );
     }
     return (await response.json()) as T;
   } finally {
@@ -41,7 +46,8 @@ export async function fetchJsonSilent<T>(
 ): Promise<T | null> {
   try {
     return await fetchJson<T>(url, init, timeoutMs);
-  } catch {
+  } catch (error) {
+    console.warn('fetch failed', url, error);
     return null;
   }
 }
