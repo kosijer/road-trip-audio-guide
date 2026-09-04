@@ -1,0 +1,27 @@
+export const s = {
+  appName: 'Vodič za put',
+  subtitle: 'Audio pratnja tokom vožnje i šetnje',
+  startTrip: 'Pokreni vožnju',
+  endTrip: 'Završi vožnju',
+  walking: 'Šta ima u okolini?',
+  walkingBusy: 'Tražim zanimljiva mesta…',
+  originPlaceholder: 'Polazak (npr. Heraklion)',
+  destinationPlaceholder: 'Odredište (npr. Chania)',
+  prefetch: 'Preuzmi POI duž rute',
+  prefetching: 'Preuzimam rutu i mesta…',
+  tripActive: 'Vožnja je aktivna',
+  tripIdle: 'Vožnja nije pokrenuta',
+  moving: 'U pokretu',
+  stationary: 'Stajanje / spor saobraćaj',
+  permissionNeeded: 'Potrebna je dozvola za lokaciju da bi vodič radio.',
+  notificationPermission: 'Dozvoli obaveštenja da bi vožnja ostala aktivna u pozadini.',
+  noPoi: 'U blizini trenutno nema dovoljno zanimljivih mesta.',
+  offlineSkip: 'Nema mreže — preskačem ovaj interval.',
+  llmCap: 'Dostignut je limit priča za ovu vožnju.',
+  ttsMissing:
+    'Tekst je spreman, ali TTS nije dostupan. Instalirajte srpski glas u podešavanjima Google teksta u govor.',
+  lastStory: 'Poslednja priča',
+  status: 'Status',
+  prefetchHint:
+    'Opciono: preuzmite mesta duž rute dok imate Wi‑Fi, pa pokrenite vožnju.',
+};
