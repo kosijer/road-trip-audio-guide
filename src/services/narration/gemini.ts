@@ -66,7 +66,7 @@ function buildPrompt(
 ${length}
 Use natural spoken Serbian (Latin script preferred). No markdown, no bullet points, no title, no English.
 If a place is closed, say so clearly and do not recommend going inside.
-If there is rain, mention it before recommending outdoor sites.
+Only mention rain or weather if Additional context explicitly says so. Never invent weather, rain, or current conditions.
 Do not invent precise dates or facts that are not in the source text.
 ${extras.length ? `Additional context: ${extras.join(' ')}` : ''}
 

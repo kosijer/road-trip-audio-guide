@@ -122,16 +122,7 @@ function readPosition(
   });
 }
 
-export async function getCurrentLocation(): Promise<LocationSample> {
-  if (locationOverride) {
-    return {
-      latitude: locationOverride.latitude,
-      longitude: locationOverride.longitude,
-      speedKmh: 0,
-      timestamp: Date.now(),
-      accuracyM: 5,
-    };
-  }
+async function readDeviceLocation(): Promise<LocationSample> {
   try {
     return await readPosition(false, 10_000, 60_000);
   } catch (networkErr) {
@@ -143,4 +134,22 @@ export async function getCurrentLocation(): Promise<LocationSample> {
       );
     }
   }
+}
+
+/** Real GPS only — used for weather so debug POI presets don't invent local rain. */
+export async function getRealLocation(): Promise<LocationSample> {
+  return readDeviceLocation();
+}
+
+export async function getCurrentLocation(): Promise<LocationSample> {
+  if (locationOverride) {
+    return {
+      latitude: locationOverride.latitude,
+      longitude: locationOverride.longitude,
+      speedKmh: 0,
+      timestamp: Date.now(),
+      accuracyM: 5,
+    };
+  }
+  return readDeviceLocation();
 }

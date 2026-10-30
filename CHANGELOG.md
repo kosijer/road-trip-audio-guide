@@ -22,3 +22,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Optional Cloudflare Clef decision ranking: re-orders a heuristic shortlist of nearby POIs before Gemini writes narration (`CLEF_ENABLED` + Cloudflare account token). Falls back to keyword score when disabled or on error.
 - Debug location presets (London / Westminster / Belgrade) to test narration away from the real GPS position; Gemini narration timeout raised to 60s.
 - Gemini narration switched to lite models with retry/fallback (`gemini-flash-lite-latest`, then 3.1/3.5 lite) after `gemini-flash-latest` 503/timeouts; local spoken fallback if all LLM calls fail.
+- Weather caveats: align Open-Meteo to the current hour (not midnight), raise rain thresholds, use real GPS for weather even with debug POI location, and tell Gemini not to invent rain.

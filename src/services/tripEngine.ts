@@ -16,7 +16,11 @@ import {
   saveNarration,
   setStatus,
 } from './store';
-import { getCurrentLocation, requestLocationPermission } from './location';
+import {
+  getCurrentLocation,
+  getRealLocation,
+  requestLocationPermission,
+} from './location';
 import { generateNarration } from './narration';
 import { rankPois } from './poi/discover';
 import { selectPoisForNarration } from './poi/rankWithDecision';
@@ -246,7 +250,17 @@ async function narrateOnce(
 
   const extras: string[] = [];
   if (mode === 'walking') {
-    const weather = await getWeather(location.latitude, location.longitude);
+    // Weather must reflect where the user actually is, even if POIs use a debug location.
+    let weatherLat = location.latitude;
+    let weatherLon = location.longitude;
+    try {
+      const real = await getRealLocation();
+      weatherLat = real.latitude;
+      weatherLon = real.longitude;
+    } catch {
+      // Keep POI coordinates if real GPS is unavailable.
+    }
+    const weather = await getWeather(weatherLat, weatherLon);
     if (weather?.caveat) {
       extras.push(weather.caveat);
     }
@@ -272,7 +286,8 @@ async function narrateOnce(
 
   // Heuristic shortlist first; Clef (when enabled) re-ranks before Gemini writes.
   const selected = await selectPoisForNarration(candidates, mode);
-  const cacheKey = selected.map(p => p.id).join('|');
+  // v2: bust scripts that hallucinated weather before the rain-prompt fix.
+  const cacheKey = `v2|${selected.map(p => p.id).join('|')}`;
   const cached = await getNarration(cacheKey);
   let text = cached;
   if (!text) {
