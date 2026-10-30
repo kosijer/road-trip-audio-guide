@@ -2,7 +2,7 @@ import { haversineM, sampleAlongRoute } from '../geo';
 import { interestingness, scoreKeywords } from '../services/poi/score';
 
 describe('geo', () => {
-  it('computes haversine distance for nearby Crete points', () => {
+  it('computes haversine distance for nearby points', () => {
     const knossos = { latitude: 35.2978, longitude: 25.1631 };
     const heraklion = { latitude: 35.3387, longitude: 25.1442 };
     const meters = haversineM(knossos, heraklion);
