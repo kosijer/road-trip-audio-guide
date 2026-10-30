@@ -1,7 +1,7 @@
 import { DeviceEventEmitter } from 'react-native';
 import BackgroundService from 'react-native-background-actions';
 import { config } from '../config';
-import { s } from '../strings';
+import { t } from '../i18n';
 import type { LocationSample, Poi, TripStatus } from '../types';
 import { cellId } from '../geo';
 import {
@@ -71,7 +71,7 @@ async function keepAliveTask() {
 export async function startTrip(): Promise<TripStatus> {
   const allowed = await requestLocationPermission();
   if (!allowed) {
-    return patch({ tripActive: false, message: s.permissionNeeded });
+    return patch({ tripActive: false, message: t('permissionNeeded') });
   }
   await resetTripMemory();
   speedSamples.length = 0;
@@ -79,14 +79,14 @@ export async function startTrip(): Promise<TripStatus> {
     ...emptyStatus(),
     tripActive: true,
     llmCalls: 0,
-    message: s.tripActive,
+    message: t('tripActive'),
   });
 
   if (!BackgroundService.isRunning()) {
     await BackgroundService.start(keepAliveTask, {
       taskName: 'Trip',
-      taskTitle: s.tripActive,
-      taskDesc: s.appName,
+      taskTitle: t('tripActive'),
+      taskDesc: t('appName'),
       taskIcon: { name: 'ic_launcher', type: 'mipmap' },
       color: '#c47b3b',
       linkingURI: 'roadtripaudioguide://trip',
@@ -119,7 +119,7 @@ export async function endTrip(): Promise<TripStatus> {
   return patch({
     tripActive: false,
     moving: false,
-    message: s.tripIdle,
+    message: t('tripIdle'),
   });
 }
 
@@ -138,7 +138,7 @@ export async function drivingTick(): Promise<void> {
       location = await getCurrentLocation();
     } catch (error) {
       console.warn('location failed', error);
-      await patch({ message: s.locationFailed });
+      await patch({ message: t('locationFailed') });
       return;
     }
     const moving = isMoving(location.speedKmh);
@@ -146,7 +146,7 @@ export async function drivingTick(): Promise<void> {
     await patch({
       lastLocation: location,
       moving,
-      message: moving ? s.moving : s.stationary,
+      message: moving ? t('moving') : t('stationary'),
     });
     if (!moving) {
       return;
@@ -168,15 +168,15 @@ export async function drivingTick(): Promise<void> {
 export async function walkingNow(): Promise<TripStatus> {
   const allowed = await requestLocationPermission();
   if (!allowed) {
-    return patch({ message: s.permissionNeeded });
+    return patch({ message: t('permissionNeeded') });
   }
-  await patch({ message: s.walkingBusy });
+  await patch({ message: t('walkingBusy') });
   let location: LocationSample;
   try {
     location = await getCurrentLocation();
   } catch (error) {
     console.warn('location failed', error);
-    return patch({ message: s.locationFailed });
+    return patch({ message: t('locationFailed') });
   }
   await patch({ lastLocation: location });
   await maybeNarrate(location, 'walking');
@@ -187,15 +187,15 @@ export async function narrateNext(): Promise<TripStatus> {
   await stopSpeaking();
   const allowed = await requestLocationPermission();
   if (!allowed) {
-    return patch({ message: s.permissionNeeded });
+    return patch({ message: t('permissionNeeded') });
   }
-  await patch({ message: s.nextBusy });
+  await patch({ message: t('nextBusy') });
   let location: LocationSample;
   try {
     location = (await getStatus()).lastLocation ?? (await getCurrentLocation());
   } catch (error) {
     console.warn('location failed', error);
-    return patch({ message: s.locationFailed });
+    return patch({ message: t('locationFailed') });
   }
   await patch({ lastLocation: location });
   const mode = (await getStatus()).tripActive ? 'driving' : 'walking';
@@ -231,7 +231,7 @@ async function narrateOnce(
   } catch (error) {
     console.warn('poi discovery failed', error);
     await patch({
-      message: `${s.offlineSkip} (${String(error).slice(0, 80)})`,
+      message: `${t('offlineSkip')} (${String(error).slice(0, 80)})`,
     });
     return;
   }
@@ -244,7 +244,7 @@ async function narrateOnce(
     candidates = pickCandidates(pois);
   }
   if (candidates.length === 0) {
-    await patch({ message: skipHeard ? s.noMorePoi : s.noPoi });
+    await patch({ message: skipHeard ? t('noMorePoi') : t('noPoi') });
     return;
   }
 
@@ -279,7 +279,7 @@ async function narrateOnce(
     }
     candidates = rankPois(withHours);
     if (candidates.length === 0) {
-      await patch({ message: skipHeard ? s.noMorePoi : s.noPoi });
+      await patch({ message: skipHeard ? t('noMorePoi') : t('noPoi') });
       return;
     }
   }
@@ -293,7 +293,7 @@ async function narrateOnce(
   if (!text) {
     const calls = await getLlmCalls();
     if (calls >= config.maxLlmCallsPerTrip) {
-      await patch({ message: s.llmCap });
+      await patch({ message: t('llmCap') });
       return;
     }
     try {
@@ -302,7 +302,7 @@ async function narrateOnce(
       await saveNarration(cacheKey, text);
     } catch (error) {
       console.warn('narration failed', error);
-      await patch({ message: s.llmFailed });
+      await patch({ message: t('llmFailed') });
       return;
     }
   }
@@ -316,7 +316,7 @@ async function narrateOnce(
     lastPoiTitle: selected[0]?.title,
     lastPoiIds: selected.map(poi => poi.id),
     llmCalls,
-    message: spoken ? selected[0]?.title ?? s.appName : s.ttsMissing,
+    message: spoken ? selected[0]?.title ?? t('appName') : t('ttsMissing'),
   });
 }
 

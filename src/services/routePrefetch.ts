@@ -1,6 +1,7 @@
+import { t } from '../i18n';
+import { config } from '../config';
 import { fetchRouteSamples } from './directions';
 import { discoverPois } from './poi/discover';
-import { config } from '../config';
 import { savePois, setStatus } from './store';
 
 export async function runPrefetch(
@@ -8,14 +9,16 @@ export async function runPrefetch(
   destination: string,
   onProgress?: (message: string) => void,
 ): Promise<number> {
-  onProgress?.('Tražim rutu…');
+  onProgress?.(t('prefetching'));
   const samples = await fetchRouteSamples(origin.trim(), destination.trim());
   if (samples.length === 0) {
     throw new Error('route_failed');
   }
   const seen = new Set<string>();
   for (let i = 0; i < samples.length; i++) {
-    onProgress?.(`Preuzimam mesta ${i + 1}/${samples.length}…`);
+    onProgress?.(
+      t('prefetchProgress', { current: i + 1, total: samples.length }),
+    );
     try {
       const pois = await discoverPois(samples[i], config.drivingPoiRadiusM);
       await savePois(pois);

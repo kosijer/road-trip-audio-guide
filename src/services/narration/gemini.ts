@@ -1,4 +1,6 @@
 import { config } from '../../config';
+import type { AppLanguage } from '../../i18n/types';
+import { getNarrationLanguage } from '../../i18n';
 import { fetchJson, HttpError } from '../http';
 import type { Poi } from '../../types';
 
@@ -7,6 +9,7 @@ export interface LlmProvider {
     pois: Poi[];
     mode: 'driving' | 'walking';
     extras?: string[];
+    language?: AppLanguage;
   }): Promise<string>;
 }
 
@@ -31,10 +34,18 @@ function extractText(payload: {
     .trim();
 }
 
+function languageInstructions(language: AppLanguage): string {
+  if (language === 'sr') {
+    return 'Speak to the passenger in Serbian (Latin script preferred). No English in the spoken script.';
+  }
+  return 'Speak to the passenger in clear natural English.';
+}
+
 function buildPrompt(
   pois: Poi[],
   mode: 'driving' | 'walking',
   extras: string[] = [],
+  language: AppLanguage = 'en',
 ): string {
   const poiBlock = pois
     .map((poi, index) => {
@@ -62,9 +73,10 @@ function buildPrompt(
       ? 'Write one narration about a single most interesting place, 30-60 seconds spoken (roughly 80-140 words).'
       : 'Write one narration covering the 1-3 most interesting nearby places, 30-60 seconds spoken.';
 
-  return `You are an in-car audio guide speaking to a passenger in Serbian.
+  return `You are an in-car audio guide.
+${languageInstructions(language)}
 ${length}
-Use natural spoken Serbian (Latin script preferred). No markdown, no bullet points, no title, no English.
+No markdown, no bullet points, no title.
 If a place is closed, say so clearly and do not recommend going inside.
 Only mention rain or weather if Additional context explicitly says so. Never invent weather, rain, or current conditions.
 Do not invent precise dates or facts that are not in the source text.
@@ -124,11 +136,16 @@ async function callGemini(model: string, prompt: string): Promise<string> {
 }
 
 export const geminiProvider: LlmProvider = {
-  async generateNarration({ pois, mode, extras }) {
+  async generateNarration({ pois, mode, extras, language }) {
     if (!config.geminiApiKey) {
       throw new Error('missing_gemini_key');
     }
-    const prompt = buildPrompt(pois, mode, extras);
+    const prompt = buildPrompt(
+      pois,
+      mode,
+      extras,
+      language ?? getNarrationLanguage(),
+    );
     const models = modelCandidates();
     let lastError: unknown;
 

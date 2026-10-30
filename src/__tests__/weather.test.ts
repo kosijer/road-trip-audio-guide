@@ -63,6 +63,6 @@ describe('getWeather', () => {
     });
     const weather = await getWeather(51.5, -0.12);
     expect(weather?.rainingNow).toBe(true);
-    expect(weather?.caveat).toMatch(/kiša/i);
+    expect(weather?.caveat).toMatch(/rain/i);
   });
 });

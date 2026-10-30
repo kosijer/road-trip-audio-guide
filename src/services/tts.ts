@@ -1,16 +1,13 @@
 import { DeviceEventEmitter } from 'react-native';
 import Tts from 'react-native-tts';
-import { getSpeechPace, saveSpeechPace, type SpeechPace } from './store';
-
-export type { SpeechPace };
+import type { AppLanguage } from '../i18n/types';
+import { getNarrationLanguage } from '../i18n';
+import { getSpeechRate, saveSpeechRate } from './store';
 
 export const TTS_EVENT = 'rtag-tts';
 
-export const SPEECH_RATES: Record<SpeechPace, number> = {
-  slow: 0.85,
-  normal: 1.0,
-  fast: 1.25,
-};
+export const SPEECH_RATE_MIN = 0.5;
+export const SPEECH_RATE_MAX = 1.5;
 
 type QueueItem = { text: string; resolve: () => void };
 
@@ -19,11 +16,29 @@ let speaking = false;
 let ignoreStaleEvents = false;
 const queue: QueueItem[] = [];
 let listenersAttached = false;
-let currentPace: SpeechPace = 'normal';
+let currentRate = 1.0;
+let currentLanguage: AppLanguage = 'en';
+
+const TTS_LANGS: Record<AppLanguage, string[]> = {
+  en: ['en-US', 'en-GB', 'en_US', 'en'],
+  sr: ['sr-RS', 'sr-Latn-RS', 'sr_RS', 'hr-HR', 'bs-BA'],
+};
 
 function emitSpeaking(next: boolean) {
   speaking = next;
   DeviceEventEmitter.emit(TTS_EVENT, { speaking: next });
+}
+
+async function applyTtsLanguage(lang: AppLanguage): Promise<void> {
+  currentLanguage = lang;
+  for (const code of TTS_LANGS[lang]) {
+    try {
+      await Tts.setDefaultLanguage(code);
+      return;
+    } catch {
+      // try next
+    }
+  }
 }
 
 async function ensureReady(): Promise<boolean> {
@@ -33,17 +48,10 @@ async function ensureReady(): Promise<boolean> {
   try {
     await Tts.getInitStatus();
     attachListeners();
-    const languages = ['sr-RS', 'sr-Latn-RS', 'sr_RS', 'hr-HR'];
-    for (const lang of languages) {
-      try {
-        await Tts.setDefaultLanguage(lang);
-        break;
-      } catch {
-        // try next
-      }
-    }
-    currentPace = await getSpeechPace();
-    await Tts.setDefaultRate(SPEECH_RATES[currentPace], true);
+    currentLanguage = getNarrationLanguage();
+    await applyTtsLanguage(currentLanguage);
+    currentRate = await getSpeechRate();
+    await Tts.setDefaultRate(currentRate, true);
     ready = true;
     return true;
   } catch {
@@ -85,32 +93,41 @@ function playNext() {
     return;
   }
   emitSpeaking(true);
-  Tts.speak(item.text, {
-    androidParams: {
-      KEY_PARAM_STREAM: 'STREAM_MUSIC',
-    },
-  });
+  Tts.speak(item.text);
   item.resolve();
 }
 
-export async function getPace(): Promise<SpeechPace> {
-  currentPace = await getSpeechPace();
-  return currentPace;
+export async function getRate(): Promise<number> {
+  currentRate = await getSpeechRate();
+  return currentRate;
 }
 
-export async function applySpeechPace(pace: SpeechPace): Promise<void> {
-  currentPace = pace;
-  await saveSpeechPace(pace);
+export async function applySpeechRate(rate: number): Promise<number> {
+  currentRate = await saveSpeechRate(rate);
   const ok = await ensureReady();
   if (ok) {
-    await Tts.setDefaultRate(SPEECH_RATES[pace], true);
+    await Tts.setDefaultRate(currentRate, true);
   }
+  return currentRate;
+}
+
+export async function applyNarrationLanguage(lang: AppLanguage): Promise<void> {
+  const ok = await ensureReady();
+  if (!ok) {
+    currentLanguage = lang;
+    return;
+  }
+  await applyTtsLanguage(lang);
 }
 
 export async function speak(text: string): Promise<boolean> {
   const ok = await ensureReady();
   if (!ok || !text.trim()) {
     return false;
+  }
+  const desired = getNarrationLanguage();
+  if (desired !== currentLanguage) {
+    await applyTtsLanguage(desired);
   }
   await new Promise<void>(resolve => {
     queue.push({ text: text.trim(), resolve });

@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { cellId, haversineM } from '../geo';
+import type { AppLanguage } from '../i18n/types';
 import type { Poi, TripStatus } from '../types';
 
 const KEY = {
@@ -10,7 +11,28 @@ const KEY = {
   status: 'rtag:status',
   llmCalls: 'rtag:llmCalls',
   speechPace: 'rtag:speechPace',
+  speechRate: 'rtag:speechRate',
+  uiLanguage: 'rtag:uiLanguage',
+  narrationLanguage: 'rtag:narrationLanguage',
+  narrationFollowsUi: 'rtag:narrationFollowsUi',
 };
+
+export const SPEECH_RATE_MIN = 0.5;
+export const SPEECH_RATE_MAX = 1.5;
+export const SPEECH_RATE_STEP = 0.05;
+export const SPEECH_RATE_DEFAULT = 1.0;
+
+function clampSpeechRate(value: number): number {
+  const clamped = Math.min(SPEECH_RATE_MAX, Math.max(SPEECH_RATE_MIN, value));
+  return Math.round(clamped / SPEECH_RATE_STEP) * SPEECH_RATE_STEP;
+}
+
+function parseLanguage(raw: string | null): AppLanguage | null {
+  if (raw === 'en' || raw === 'sr') {
+    return raw;
+  }
+  return null;
+}
 
 export const emptyStatus = (): TripStatus => ({
   tripActive: false,
@@ -103,18 +125,93 @@ export async function getLlmCalls(): Promise<number> {
   return raw ? Number(raw) || 0 : 0;
 }
 
+/** @deprecated kept for migration from Slow/Normal/Fast buttons */
 export type SpeechPace = 'slow' | 'normal' | 'fast';
 
-export async function getSpeechPace(): Promise<SpeechPace> {
-  const raw = await AsyncStorage.getItem(KEY.speechPace);
-  if (raw === 'slow' || raw === 'normal' || raw === 'fast') {
-    return raw;
+const PACE_TO_RATE: Record<SpeechPace, number> = {
+  slow: 0.85,
+  normal: 1.0,
+  fast: 1.25,
+};
+
+export async function getSpeechRate(): Promise<number> {
+  const raw = await AsyncStorage.getItem(KEY.speechRate);
+  if (raw != null && raw !== '') {
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed)) {
+      return clampSpeechRate(parsed);
+    }
   }
-  return 'normal';
+  const legacy = await AsyncStorage.getItem(KEY.speechPace);
+  if (legacy === 'slow' || legacy === 'normal' || legacy === 'fast') {
+    const migrated = PACE_TO_RATE[legacy];
+    await AsyncStorage.setItem(KEY.speechRate, String(migrated));
+    return migrated;
+  }
+  return SPEECH_RATE_DEFAULT;
 }
 
-export async function saveSpeechPace(pace: SpeechPace): Promise<void> {
-  await AsyncStorage.setItem(KEY.speechPace, pace);
+export async function saveSpeechRate(rate: number): Promise<number> {
+  const next = clampSpeechRate(rate);
+  await AsyncStorage.setItem(KEY.speechRate, String(next));
+  return next;
+}
+
+export type LanguageSettings = {
+  uiLanguage: AppLanguage;
+  narrationLanguage: AppLanguage;
+  narrationFollowsUi: boolean;
+};
+
+export async function getLanguageSettings(): Promise<LanguageSettings> {
+  const [uiRaw, narrRaw, followRaw] = await Promise.all([
+    AsyncStorage.getItem(KEY.uiLanguage),
+    AsyncStorage.getItem(KEY.narrationLanguage),
+    AsyncStorage.getItem(KEY.narrationFollowsUi),
+  ]);
+  const uiLanguage = parseLanguage(uiRaw) ?? 'en';
+  const narrationFollowsUi =
+    followRaw == null ? true : followRaw === '1' || followRaw === 'true';
+  const narrationLanguage = narrationFollowsUi
+    ? uiLanguage
+    : parseLanguage(narrRaw) ?? uiLanguage;
+  return { uiLanguage, narrationLanguage, narrationFollowsUi };
+}
+
+export async function saveUiLanguage(lang: AppLanguage): Promise<LanguageSettings> {
+  const current = await getLanguageSettings();
+  await AsyncStorage.setItem(KEY.uiLanguage, lang);
+  if (current.narrationFollowsUi) {
+    await AsyncStorage.setItem(KEY.narrationLanguage, lang);
+    return {
+      uiLanguage: lang,
+      narrationLanguage: lang,
+      narrationFollowsUi: true,
+    };
+  }
+  return {
+    uiLanguage: lang,
+    narrationLanguage: current.narrationLanguage,
+    narrationFollowsUi: false,
+  };
+}
+
+export async function saveNarrationLanguage(input: {
+  language: AppLanguage;
+  followsUi: boolean;
+}): Promise<LanguageSettings> {
+  const ui = (await getLanguageSettings()).uiLanguage;
+  await AsyncStorage.setItem(
+    KEY.narrationFollowsUi,
+    input.followsUi ? 'true' : 'false',
+  );
+  const narrationLanguage = input.followsUi ? ui : input.language;
+  await AsyncStorage.setItem(KEY.narrationLanguage, narrationLanguage);
+  return {
+    uiLanguage: ui,
+    narrationLanguage,
+    narrationFollowsUi: input.followsUi,
+  };
 }
 
 export async function incrementLlmCalls(): Promise<number> {

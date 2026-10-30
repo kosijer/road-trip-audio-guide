@@ -1,41 +1,38 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  DeviceEventEmitter,
-  Pressable,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { DeviceEventEmitter, StatusBar, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { s } from './src/strings';
-import type { TripStatus } from './src/types';
-import { emptyStatus, getStatus } from './src/services/store';
+import { BottomTabs, type AppTab } from './src/components/BottomTabs';
+import { useI18n } from './src/hooks/useI18n';
+import { hydrateI18n } from './src/i18n';
+import { AroundScreen } from './src/screens/AroundScreen';
+import { DriveScreen } from './src/screens/DriveScreen';
+import { SettingsScreen } from './src/screens/SettingsScreen';
 import {
   FAKE_LOCATIONS,
-  getCurrentLocation,
   getLocationOverride,
   setLocationOverride,
   type FakeLocationId,
 } from './src/services/location';
-import { endTrip, narrateNext, startTrip, STATUS_EVENT, walkingNow } from './src/services/tripEngine';
-import { runPrefetch } from './src/services/routePrefetch';
 import {
-  applySpeechPace,
-  getPace,
+  emptyStatus,
+  getLanguageSettings,
+  getStatus,
+} from './src/services/store';
+import { narrateNext, STATUS_EVENT } from './src/services/tripEngine';
+import {
+  applyNarrationLanguage,
+  getRate,
   isSpeaking,
-  speak,
   stopSpeaking,
   TTS_EVENT,
-  type SpeechPace,
 } from './src/services/tts';
+import { colors, sharedStyles } from './src/theme';
+import type { TripStatus } from './src/types';
 
 function App() {
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle="light-content" backgroundColor="#1b1714" />
+      <StatusBar barStyle="light-content" />
       <AppScreen />
     </SafeAreaProvider>
   );
@@ -43,30 +40,45 @@ function App() {
 
 function AppScreen() {
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
+  const [tab, setTab] = useState<AppTab>('drive');
   const [status, setStatus] = useState<TripStatus>(emptyStatus());
-  const [origin, setOrigin] = useState('');
-  const [destination, setDestination] = useState('');
   const [busy, setBusy] = useState(false);
   const [speaking, setSpeaking] = useState(false);
-  const [pace, setPace] = useState<SpeechPace>('normal');
+  const [speechRate, setSpeechRate] = useState(1);
   const [fakeLocation, setFakeLocation] = useState<FakeLocationId | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    void getStatus().then(setStatus);
-    void getPace().then(setPace);
-    const override = getLocationOverride();
-    if (override) {
-      const match = (Object.keys(FAKE_LOCATIONS) as FakeLocationId[]).find(
-        id => FAKE_LOCATIONS[id].label === override.label,
-      );
-      setFakeLocation(match ?? null);
-    }
+    void (async () => {
+      const [nextStatus, languages, rate] = await Promise.all([
+        getStatus(),
+        getLanguageSettings(),
+        getRate(),
+      ]);
+      hydrateI18n(languages);
+      await applyNarrationLanguage(languages.narrationLanguage);
+      setStatus(nextStatus);
+      setSpeechRate(rate);
+      const override = getLocationOverride();
+      if (override) {
+        const match = (Object.keys(FAKE_LOCATIONS) as FakeLocationId[]).find(
+          id => FAKE_LOCATIONS[id].label === override.label,
+        );
+        setFakeLocation(match ?? null);
+      }
+      setReady(true);
+    })();
+
     const sub = DeviceEventEmitter.addListener(STATUS_EVENT, (next: TripStatus) => {
       setStatus(next);
     });
-    const ttsSub = DeviceEventEmitter.addListener(TTS_EVENT, (payload: { speaking: boolean }) => {
-      setSpeaking(payload.speaking);
-    });
+    const ttsSub = DeviceEventEmitter.addListener(
+      TTS_EVENT,
+      (payload: { speaking: boolean }) => {
+        setSpeaking(payload.speaking);
+      },
+    );
     const poll = setInterval(() => {
       void getStatus().then(setStatus);
       setSpeaking(isSpeaking());
@@ -76,28 +88,6 @@ function AppScreen() {
       ttsSub.remove();
       clearInterval(poll);
     };
-  }, []);
-
-  const onToggleTrip = useCallback(async () => {
-    setBusy(true);
-    try {
-      if (status.tripActive) {
-        setStatus(await endTrip());
-      } else {
-        setStatus(await startTrip());
-      }
-    } finally {
-      setBusy(false);
-    }
-  }, [status.tripActive]);
-
-  const onWalk = useCallback(async () => {
-    setBusy(true);
-    try {
-      setStatus(await walkingNow());
-    } finally {
-      setBusy(false);
-    }
   }, []);
 
   const onStopSpeech = useCallback(async () => {
@@ -114,302 +104,66 @@ function AppScreen() {
     }
   }, []);
 
-  const onPace = useCallback(
-    async (next: SpeechPace) => {
-      const restart = isSpeaking() && Boolean(status.lastNarration);
-      if (restart) {
-        await stopSpeaking();
-        setSpeaking(false);
-      }
-      await applySpeechPace(next);
-      setPace(next);
-      if (restart && status.lastNarration) {
-        await speak(status.lastNarration);
-      }
+  const onFakeLocation = useCallback(
+    (next: FakeLocationId | null) => {
+      setLocationOverride(next);
+      setFakeLocation(next);
+      setStatus(prev => ({
+        ...prev,
+        message: next
+          ? t('debugOn', { label: FAKE_LOCATIONS[next].label })
+          : t('debugOff'),
+      }));
     },
-    [status.lastNarration],
+    [t],
   );
 
-  const onFakeLocation = useCallback((next: FakeLocationId | null) => {
-    setLocationOverride(next);
-    setFakeLocation(next);
-    setStatus(prev => ({
-      ...prev,
-      message: next
-        ? `Debug lokacija: ${FAKE_LOCATIONS[next].label}`
-        : 'Debug lokacija isključena (pravi GPS)',
-    }));
-  }, []);
-
-  const onPrefetch = useCallback(async () => {
-    if (!destination.trim()) {
-      return;
-    }
-    setBusy(true);
-    try {
-      let from = origin.trim();
-      if (!from) {
-        const here = await getCurrentLocation();
-        from = `${here.latitude},${here.longitude}`;
-      }
-      const count = await runPrefetch(
-        from,
-        destination.trim(),
-        message => setStatus(prev => ({ ...prev, message })),
-      );
-      setStatus(await getStatus().then(next => ({ ...next, prefetchCount: count, message: `Keširano ${count} mesta.` })));
-    } catch {
-      setStatus(prev => ({ ...prev, message: 'Ruta nije pronađena. Proverite odredište.' }));
-    } finally {
-      setBusy(false);
-    }
-  }, [origin, destination]);
-
-  const loc = status.lastLocation
-    ? `${status.lastLocation.latitude.toFixed(4)}, ${status.lastLocation.longitude.toFixed(4)} · ${Math.round(status.lastLocation.speedKmh)} km/h`
-    : '—';
-  const locDisplay = fakeLocation
-    ? `${FAKE_LOCATIONS[fakeLocation].label} (debug) · ${loc}`
-    : loc;
+  if (!ready) {
+    return <View style={sharedStyles.root} />;
+  }
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>{s.appName}</Text>
-        <Text style={styles.subtitle}>{s.subtitle}</Text>
-
-        <Pressable
-          style={[styles.primary, status.tripActive ? styles.stop : styles.go, busy && styles.disabled]}
-          onPress={onToggleTrip}
-          disabled={busy}>
-          <Text style={styles.primaryText}>
-            {status.tripActive ? s.endTrip : s.startTrip}
-          </Text>
-        </Pressable>
-
-        <Pressable
-          style={[styles.secondary, busy && styles.disabled]}
-          onPress={onWalk}
-          disabled={busy}>
-          <Text style={styles.secondaryText}>{s.walking}</Text>
-        </Pressable>
-
-        <Text style={styles.section}>{s.debugLocation}</Text>
-        <View style={styles.rowBtns}>
-          <Pressable
-            style={[styles.paceBtn, fakeLocation === null && styles.paceSelected]}
-            onPress={() => onFakeLocation(null)}>
-            <Text
-              style={[
-                styles.paceText,
-                fakeLocation === null && styles.paceTextSelected,
-              ]}>
-              {s.debugGps}
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.paceBtn, fakeLocation === 'london' && styles.paceSelected]}
-            onPress={() => onFakeLocation('london')}>
-            <Text
-              style={[
-                styles.paceText,
-                fakeLocation === 'london' && styles.paceTextSelected,
-              ]}>
-              {s.debugLondon}
-            </Text>
-          </Pressable>
-        </View>
-        <View style={styles.rowBtns}>
-          <Pressable
-            style={[
-              styles.paceBtn,
-              fakeLocation === 'westminster' && styles.paceSelected,
-            ]}
-            onPress={() => onFakeLocation('westminster')}>
-            <Text
-              style={[
-                styles.paceText,
-                fakeLocation === 'westminster' && styles.paceTextSelected,
-              ]}>
-              {s.debugWestminster}
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[
-              styles.paceBtn,
-              fakeLocation === 'belgrade' && styles.paceSelected,
-            ]}
-            onPress={() => onFakeLocation('belgrade')}>
-            <Text
-              style={[
-                styles.paceText,
-                fakeLocation === 'belgrade' && styles.paceTextSelected,
-              ]}>
-              {s.debugBelgrade}
-            </Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.rowBtns}>
-          <Pressable
-            style={[styles.halfBtn, !speaking && styles.disabled]}
-            onPress={onStopSpeech}
-            disabled={!speaking}>
-            <Text style={styles.secondaryText}>{s.stopSpeech}</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.halfBtn, busy && styles.disabled]}
-            onPress={onNext}
-            disabled={busy}>
-            <Text style={styles.secondaryText}>{s.nextStory}</Text>
-          </Pressable>
-        </View>
-
-        <Text style={styles.section}>{s.speechRate}</Text>
-        <View style={styles.rowBtns}>
-          {(['slow', 'normal', 'fast'] as const).map(option => (
-            <Pressable
-              key={option}
-              style={[styles.paceBtn, pace === option && styles.paceSelected]}
-              onPress={() => {
-                void onPace(option);
-              }}>
-              <Text style={[styles.paceText, pace === option && styles.paceTextSelected]}>
-                {option === 'slow' ? s.speechSlow : option === 'fast' ? s.speechFast : s.speechNormal}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <Text style={styles.section}>{s.status}</Text>
-        <View style={styles.card}>
-          <Row label="Vožnja" value={status.tripActive ? s.tripActive : s.tripIdle} />
-          <Row label="Kretanje" value={status.moving ? s.moving : s.stationary} />
-          <Row label="Lokacija" value={locDisplay} />
-          <Row label="LLM" value={`${status.llmCalls}`} />
-          <Row label="Keš rute" value={`${status.prefetchCount}`} />
-          <Text style={styles.message}>{status.message || '—'}</Text>
-        </View>
-
-        <Text style={styles.section}>Priprema rute</Text>
-        <Text style={styles.hint}>{s.prefetchHint}</Text>
-        <TextInput
-          value={origin}
-          onChangeText={setOrigin}
-          placeholder={s.originPlaceholder}
-          placeholderTextColor="#8a7d72"
-          style={styles.input}
-        />
-        <TextInput
-          value={destination}
-          onChangeText={setDestination}
-          placeholder={s.destinationPlaceholder}
-          placeholderTextColor="#8a7d72"
-          style={styles.input}
-        />
-        <Pressable
-          style={[styles.secondary, busy && styles.disabled]}
-          onPress={onPrefetch}
-          disabled={busy || !destination.trim()}>
-          <Text style={styles.secondaryText}>{busy ? s.prefetching : s.prefetch}</Text>
-        </Pressable>
-
-        {status.lastNarration ? (
-          <>
-            <Text style={styles.section}>{s.lastStory}</Text>
-            <View style={styles.card}>
-              <Text style={styles.storyTitle}>{status.lastPoiTitle}</Text>
-              <Text style={styles.story}>{status.lastNarration}</Text>
-            </View>
-          </>
+    <View
+      style={[
+        sharedStyles.root,
+        { paddingTop: insets.top },
+      ]}>
+      <View style={{ flex: 1 }}>
+        {tab === 'drive' ? (
+          <DriveScreen
+            status={status}
+            setStatus={setStatus}
+            speaking={speaking}
+            busy={busy}
+            setBusy={setBusy}
+            onStopSpeech={onStopSpeech}
+            onNext={onNext}
+          />
         ) : null}
-      </ScrollView>
+        {tab === 'around' ? (
+          <AroundScreen
+            status={status}
+            setStatus={setStatus}
+            speaking={speaking}
+            busy={busy}
+            setBusy={setBusy}
+            onStopSpeech={onStopSpeech}
+            onNext={onNext}
+          />
+        ) : null}
+        {tab === 'settings' ? (
+          <SettingsScreen
+            status={status}
+            speechRate={speechRate}
+            setSpeechRate={setSpeechRate}
+            fakeLocation={fakeLocation}
+            onFakeLocation={onFakeLocation}
+          />
+        ) : null}
+      </View>
+      <BottomTabs active={tab} onChange={setTab} bottomInset={insets.bottom} />
     </View>
   );
 }
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.row}>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.rowValue}>{value}</Text>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#1b1714' },
-  content: { padding: 20, gap: 12, paddingBottom: 40 },
-  title: { color: '#f4e6d4', fontSize: 32, fontWeight: '700' },
-  subtitle: { color: '#cbbbaa', fontSize: 16, marginBottom: 8 },
-  primary: {
-    minHeight: 64,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  go: { backgroundColor: '#2f6f4e' },
-  stop: { backgroundColor: '#8b3a32' },
-  primaryText: { color: '#fff', fontSize: 22, fontWeight: '700' },
-  secondary: {
-    minHeight: 56,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#3a312b',
-    borderWidth: 1,
-    borderColor: '#c47b3b',
-  },
-  secondaryText: { color: '#f4e6d4', fontSize: 18, fontWeight: '600' },
-  rowBtns: { flexDirection: 'row', gap: 10 },
-  halfBtn: {
-    flex: 1,
-    minHeight: 56,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#3a312b',
-    borderWidth: 1,
-    borderColor: '#c47b3b',
-  },
-  paceBtn: {
-    flex: 1,
-    minHeight: 48,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#261f1b',
-    borderWidth: 1,
-    borderColor: '#3a312b',
-  },
-  paceSelected: { backgroundColor: '#3a312b', borderColor: '#c47b3b' },
-  paceText: { color: '#cbbbaa', fontSize: 16, fontWeight: '600' },
-  paceTextSelected: { color: '#f4e6d4' },
-  disabled: { opacity: 0.6 },
-  section: { color: '#c47b3b', fontSize: 14, fontWeight: '700', marginTop: 8 },
-  hint: { color: '#8a7d72', fontSize: 13 },
-  card: {
-    backgroundColor: '#261f1b',
-    borderRadius: 14,
-    padding: 14,
-    gap: 8,
-  },
-  row: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
-  rowLabel: { color: '#8a7d72' },
-  rowValue: { color: '#f4e6d4', flex: 1, textAlign: 'right' },
-  message: { color: '#e6d3b8', marginTop: 4 },
-  input: {
-    backgroundColor: '#261f1b',
-    color: '#f4e6d4',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#3a312b',
-  },
-  storyTitle: { color: '#f4e6d4', fontWeight: '700', fontSize: 16 },
-  story: { color: '#d8c6b0', fontSize: 16, lineHeight: 24 },
-});
 
 export default App;

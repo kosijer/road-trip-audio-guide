@@ -1,43 +1,13 @@
-export const s = {
-  appName: 'Vodič za put',
-  subtitle: 'Audio pratnja tokom vožnje i šetnje',
-  startTrip: 'Pokreni vožnju',
-  endTrip: 'Završi vožnju',
-  walking: 'Šta ima u okolini?',
-  walkingBusy: 'Tražim zanimljiva mesta…',
-  originPlaceholder: 'Polazak (npr. London)',
-  destinationPlaceholder: 'Odredište (npr. Oxford)',
-  prefetch: 'Preuzmi POI duž rute',
-  prefetching: 'Preuzimam rutu i mesta…',
-  tripActive: 'Vožnja je aktivna',
-  tripIdle: 'Vožnja nije pokrenuta',
-  moving: 'U pokretu',
-  stationary: 'Stajanje / spor saobraćaj',
-  permissionNeeded: 'Potrebna je dozvola za lokaciju da bi vodič radio.',
-  notificationPermission: 'Dozvoli obaveštenja da bi vožnja ostala aktivna u pozadini.',
-  noPoi: 'U blizini trenutno nema dovoljno zanimljivih mesta.',
-  locationFailed:
-    'Ne mogu da odredim lokaciju. Uključite lokaciju i pokušajte ponovo.',
-  llmFailed: 'Nisam uspeo da napravim priču. Pokušajte ponovo.',
-  offlineSkip: 'Nema mreže — preskačem ovaj interval.',
-  llmCap: 'Dostignut je limit priča za ovu vožnju.',
-  ttsMissing:
-    'Tekst je spreman, ali TTS nije dostupan. Instalirajte srpski glas u podešavanjima Google teksta u govor.',
-  lastStory: 'Poslednja priča',
-  stopSpeech: 'Zaustavi',
-  nextStory: 'Sledeća',
-  nextBusy: 'Tražim sledeću priču…',
-  noMorePoi: 'Nema više mesta u okolini.',
-  speechRate: 'Brzina glasa',
-  speechSlow: 'Sporo',
-  speechNormal: 'Normalno',
-  speechFast: 'Brzo',
-  status: 'Status',
-  prefetchHint:
-    'Opciono: preuzmite mesta duž rute dok imate Wi‑Fi, pa pokrenite vožnju.',
-  debugLocation: 'Debug lokacija',
-  debugGps: 'Pravi GPS',
-  debugLondon: 'London',
-  debugBelgrade: 'Beograd',
-  debugWestminster: 'Westminster',
-};
+/**
+ * @deprecated Use `t` / `tn` from `src/i18n` instead.
+ * Kept as a thin re-export so older imports do not break mid-refactor.
+ */
+import { t } from './i18n';
+import type { StringKey } from './i18n/types';
+import { en } from './i18n/en';
+
+export const s: Record<StringKey, string> = new Proxy(en, {
+  get(_target, prop: string) {
+    return t(prop as StringKey);
+  },
+});

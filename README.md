@@ -2,7 +2,7 @@
 
 Android companion app that narrates nearby historical places while you drive or walk. Navigation stays in Google Maps; this app only talks.
 
-Spoken output is currently Serbian. Active development is for general road / city use (not tied to a single trip).
+UI defaults to English (Serbian available in Settings). Narration language can follow the UI or be set separately. Active development is for general road / city use.
 
 ## Prerequisites
 
@@ -28,12 +28,15 @@ Code: [`src/services/decision/clef.ts`](src/services/decision/clef.ts), [`src/se
 
 ## Features (current)
 
-- Driving mode (background trip + periodic nearby narration) and walking “what’s around me”
-- Playback: stop, next story, Slow / Normal / Fast speech rate (persisted)
-- Debug location presets (London / Westminster / Belgrade) for demos away from real GPS
+- Three tabs: **Drive** (trip + route prefetch), **Around** (what’s nearby), **Settings**
+- English / Serbian UI; narration language follows UI until overridden in Settings
+- Speech rate slider (0.50×–1.50×), stop / next story
+- Debug location presets (London / Westminster / Belgrade) in Settings
 - Gemini lite models with retry/fallback + local spoken fallback if the LLM is unavailable
 - Optional Clef decision ranking before narration
 - Weather caveats from Open-Meteo (real GPS even when debug POI location is on)
+
+Map view of nearby POIs is planned for a later change.
 
 ## Run
 

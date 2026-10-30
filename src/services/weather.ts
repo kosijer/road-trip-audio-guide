@@ -1,3 +1,4 @@
+import { tn } from '../i18n';
 import { fetchJsonSilent } from './http';
 
 export type WeatherSnapshot = {
@@ -70,8 +71,6 @@ export async function getWeather(
   return {
     rainingNow,
     rainLikelyNextHour,
-    caveat: rainingNow
-      ? 'Trenutno pada kiša, pa otvoreni lokaliteti možda nisu prijatni.'
-      : 'U narednom satu je verovatna kiša.',
+    caveat: rainingNow ? tn('weatherRainingNow') : tn('weatherRainLikely'),
   };
 }

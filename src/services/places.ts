@@ -1,4 +1,5 @@
 import { config } from '../config';
+import { tn } from '../i18n';
 import { fetchJsonSilent } from './http';
 import type { Poi } from '../types';
 
@@ -58,6 +59,6 @@ export function applyHoursPolicy(poi: Poi): Poi | null {
   }
   return {
     ...poi,
-    hoursCaveat: 'Trenutno je zatvoreno, ali se može videti sa spolja.',
+    hoursCaveat: tn('hoursClosedOutdoor'),
   };
 }
