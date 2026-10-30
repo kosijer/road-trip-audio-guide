@@ -1,12 +1,58 @@
 import { PermissionsAndroid, Platform } from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
-import type { LocationSample } from '../types';
+import type { GeoPoint, LocationSample } from '../types';
 
 Geolocation.setRNConfiguration({
   skipPermissionRequests: true,
   authorizationLevel: 'whenInUse',
   locationProvider: 'auto',
 });
+
+/** Named spots for indoor / suburb testing without mocking Android GPS. */
+export const FAKE_LOCATIONS = {
+  london: {
+    id: 'london',
+    label: 'London',
+    latitude: 51.5081,
+    longitude: -0.1281,
+  },
+  belgrade: {
+    id: 'belgrade',
+    label: 'Beograd',
+    latitude: 44.8231,
+    longitude: 20.4505,
+  },
+  westminster: {
+    id: 'westminster',
+    label: 'Westminster',
+    latitude: 51.4994,
+    longitude: -0.1245,
+  },
+} as const;
+
+export type FakeLocationId = keyof typeof FAKE_LOCATIONS;
+
+let locationOverride: (GeoPoint & { label: string }) | null = null;
+
+export function getLocationOverride(): (GeoPoint & { label: string }) | null {
+  return locationOverride;
+}
+
+export function setLocationOverride(
+  next: FakeLocationId | null,
+): (GeoPoint & { label: string }) | null {
+  if (!next) {
+    locationOverride = null;
+    return null;
+  }
+  const spot = FAKE_LOCATIONS[next];
+  locationOverride = {
+    label: spot.label,
+    latitude: spot.latitude,
+    longitude: spot.longitude,
+  };
+  return locationOverride;
+}
 
 function speedToKmh(speedMs?: number | null): number {
   if (speedMs == null || Number.isNaN(speedMs) || speedMs < 0) {
@@ -77,6 +123,15 @@ function readPosition(
 }
 
 export async function getCurrentLocation(): Promise<LocationSample> {
+  if (locationOverride) {
+    return {
+      latitude: locationOverride.latitude,
+      longitude: locationOverride.longitude,
+      speedKmh: 0,
+      timestamp: Date.now(),
+      accuracyM: 5,
+    };
+  }
   try {
     return await readPosition(false, 10_000, 60_000);
   } catch (networkErr) {

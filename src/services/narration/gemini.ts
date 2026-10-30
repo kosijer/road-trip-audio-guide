@@ -89,7 +89,7 @@ export const geminiProvider: LlmProvider = {
           },
         }),
       },
-      25_000,
+      60_000,
     );
     const text = extractText(payload);
     if (!text) {

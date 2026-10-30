@@ -35,4 +35,9 @@ export const s = {
   status: 'Status',
   prefetchHint:
     'Opciono: preuzmite mesta duž rute dok imate Wi‑Fi, pa pokrenite vožnju.',
+  debugLocation: 'Debug lokacija',
+  debugGps: 'Pravi GPS',
+  debugLondon: 'London',
+  debugBelgrade: 'Beograd',
+  debugWestminster: 'Westminster',
 };

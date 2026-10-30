@@ -13,7 +13,13 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { s } from './src/strings';
 import type { TripStatus } from './src/types';
 import { emptyStatus, getStatus } from './src/services/store';
-import { getCurrentLocation } from './src/services/location';
+import {
+  FAKE_LOCATIONS,
+  getCurrentLocation,
+  getLocationOverride,
+  setLocationOverride,
+  type FakeLocationId,
+} from './src/services/location';
 import { endTrip, narrateNext, startTrip, STATUS_EVENT, walkingNow } from './src/services/tripEngine';
 import { runPrefetch } from './src/services/routePrefetch';
 import {
@@ -43,10 +49,18 @@ function AppScreen() {
   const [busy, setBusy] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [pace, setPace] = useState<SpeechPace>('normal');
+  const [fakeLocation, setFakeLocation] = useState<FakeLocationId | null>(null);
 
   useEffect(() => {
     void getStatus().then(setStatus);
     void getPace().then(setPace);
+    const override = getLocationOverride();
+    if (override) {
+      const match = (Object.keys(FAKE_LOCATIONS) as FakeLocationId[]).find(
+        id => FAKE_LOCATIONS[id].label === override.label,
+      );
+      setFakeLocation(match ?? null);
+    }
     const sub = DeviceEventEmitter.addListener(STATUS_EVENT, (next: TripStatus) => {
       setStatus(next);
     });
@@ -116,6 +130,17 @@ function AppScreen() {
     [status.lastNarration],
   );
 
+  const onFakeLocation = useCallback((next: FakeLocationId | null) => {
+    setLocationOverride(next);
+    setFakeLocation(next);
+    setStatus(prev => ({
+      ...prev,
+      message: next
+        ? `Debug lokacija: ${FAKE_LOCATIONS[next].label}`
+        : 'Debug lokacija isključena (pravi GPS)',
+    }));
+  }, []);
+
   const onPrefetch = useCallback(async () => {
     if (!destination.trim()) {
       return;
@@ -143,6 +168,9 @@ function AppScreen() {
   const loc = status.lastLocation
     ? `${status.lastLocation.latitude.toFixed(4)}, ${status.lastLocation.longitude.toFixed(4)} · ${Math.round(status.lastLocation.speedKmh)} km/h`
     : '—';
+  const locDisplay = fakeLocation
+    ? `${FAKE_LOCATIONS[fakeLocation].label} (debug) · ${loc}`
+    : loc;
 
   return (
     <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
@@ -165,6 +193,62 @@ function AppScreen() {
           disabled={busy}>
           <Text style={styles.secondaryText}>{s.walking}</Text>
         </Pressable>
+
+        <Text style={styles.section}>{s.debugLocation}</Text>
+        <View style={styles.rowBtns}>
+          <Pressable
+            style={[styles.paceBtn, fakeLocation === null && styles.paceSelected]}
+            onPress={() => onFakeLocation(null)}>
+            <Text
+              style={[
+                styles.paceText,
+                fakeLocation === null && styles.paceTextSelected,
+              ]}>
+              {s.debugGps}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.paceBtn, fakeLocation === 'london' && styles.paceSelected]}
+            onPress={() => onFakeLocation('london')}>
+            <Text
+              style={[
+                styles.paceText,
+                fakeLocation === 'london' && styles.paceTextSelected,
+              ]}>
+              {s.debugLondon}
+            </Text>
+          </Pressable>
+        </View>
+        <View style={styles.rowBtns}>
+          <Pressable
+            style={[
+              styles.paceBtn,
+              fakeLocation === 'westminster' && styles.paceSelected,
+            ]}
+            onPress={() => onFakeLocation('westminster')}>
+            <Text
+              style={[
+                styles.paceText,
+                fakeLocation === 'westminster' && styles.paceTextSelected,
+              ]}>
+              {s.debugWestminster}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[
+              styles.paceBtn,
+              fakeLocation === 'belgrade' && styles.paceSelected,
+            ]}
+            onPress={() => onFakeLocation('belgrade')}>
+            <Text
+              style={[
+                styles.paceText,
+                fakeLocation === 'belgrade' && styles.paceTextSelected,
+              ]}>
+              {s.debugBelgrade}
+            </Text>
+          </Pressable>
+        </View>
 
         <View style={styles.rowBtns}>
           <Pressable
@@ -201,7 +285,7 @@ function AppScreen() {
         <View style={styles.card}>
           <Row label="Vožnja" value={status.tripActive ? s.tripActive : s.tripIdle} />
           <Row label="Kretanje" value={status.moving ? s.moving : s.stationary} />
-          <Row label="Lokacija" value={loc} />
+          <Row label="Lokacija" value={locDisplay} />
           <Row label="LLM" value={`${status.llmCalls}`} />
           <Row label="Keš rute" value={`${status.prefetchCount}`} />
           <Text style={styles.message}>{status.message || '—'}</Text>

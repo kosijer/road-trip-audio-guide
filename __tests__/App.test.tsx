@@ -17,6 +17,8 @@ test('renders Serbian home screen', async () => {
   expect(text).toContain('Šta ima u okolini?');
   expect(text).toContain('Zaustavi');
   expect(text).toContain('Sledeća');
+  expect(text).toContain('Debug lokacija');
+  expect(text).toContain('London');
   await ReactTestRenderer.act(() => {
     tree.unmount();
   });
