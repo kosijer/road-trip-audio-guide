@@ -3,6 +3,7 @@ module.exports = {
   ANTHROPIC_API_KEY: '',
   OPENAI_API_KEY: '',
   GEMINI_API_KEY: 'test-gemini',
+  GEMINI_MODEL: 'gemini-flash-lite-latest',
   GOOGLE_MAPS_API_KEY: 'test-maps',
   CLEF_ENABLED: 'false',
   CLOUDFLARE_ACCOUNT_ID: '',

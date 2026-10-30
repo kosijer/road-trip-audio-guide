@@ -1,5 +1,5 @@
 import { config } from '../../config';
-import { fetchJson } from '../http';
+import { fetchJson, HttpError } from '../http';
 import type { Poi } from '../../types';
 
 export interface LlmProvider {
@@ -9,6 +9,16 @@ export interface LlmProvider {
     extras?: string[];
   }): Promise<string>;
 }
+
+/**
+ * Prefer lite models: `gemini-flash-latest` is often 503/timeout under free-tier load.
+ * Primary can be overridden with GEMINI_MODEL in `.env`.
+ */
+const FALLBACK_MODELS = [
+  'gemini-flash-lite-latest',
+  'gemini-3.1-flash-lite',
+  'gemini-3.5-flash-lite',
+];
 
 function extractText(payload: {
   candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
@@ -64,37 +74,83 @@ Source places:
 ${poiBlock}`;
 }
 
+function modelCandidates(): string[] {
+  const preferred = (config.geminiModel || '').trim();
+  const ordered = preferred
+    ? [preferred, ...FALLBACK_MODELS.filter(m => m !== preferred)]
+    : FALLBACK_MODELS;
+  return ordered;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function isRetryable(error: unknown): boolean {
+  if (error instanceof HttpError) {
+    return error.status === 429 || error.status === 503 || error.status === 500;
+  }
+  const message = String(error);
+  return /AbortError|aborted|timeout|network/i.test(message);
+}
+
+async function callGemini(model: string, prompt: string): Promise<string> {
+  const payload = await fetchJson<{
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    error?: { message?: string };
+  }>(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': config.geminiApiKey,
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          maxOutputTokens: 1024,
+          temperature: 0.7,
+        },
+      }),
+    },
+    45_000,
+  );
+  const text = extractText(payload);
+  if (!text) {
+    throw new Error(payload.error?.message || 'empty_narration');
+  }
+  return text;
+}
+
 export const geminiProvider: LlmProvider = {
   async generateNarration({ pois, mode, extras }) {
     if (!config.geminiApiKey) {
       throw new Error('missing_gemini_key');
     }
-    const payload = await fetchJson<{
-      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-      error?: { message?: string };
-    }>(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': config.geminiApiKey,
-        },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: buildPrompt(pois, mode, extras) }] }],
-          generationConfig: {
-            maxOutputTokens: 1024,
-            temperature: 0.7,
-            thinkingConfig: { thinkingBudget: 0 },
-          },
-        }),
-      },
-      60_000,
-    );
-    const text = extractText(payload);
-    if (!text) {
-      throw new Error(payload.error?.message || 'empty_narration');
+    const prompt = buildPrompt(pois, mode, extras);
+    const models = modelCandidates();
+    let lastError: unknown;
+
+    for (const model of models) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const text = await callGemini(model, prompt);
+          console.log('gemini ok', model, `attempt=${attempt + 1}`);
+          return text;
+        } catch (error) {
+          lastError = error;
+          console.warn('gemini attempt failed', model, attempt + 1, error);
+          if (!isRetryable(error) || attempt === 1) {
+            break;
+          }
+          await sleep(800 * (attempt + 1));
+        }
+      }
     }
-    return text;
+
+    throw lastError instanceof Error
+      ? lastError
+      : new Error(String(lastError || 'gemini_failed'));
   },
 };

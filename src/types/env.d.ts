@@ -3,6 +3,7 @@ declare module '@env' {
   export const ANTHROPIC_API_KEY: string;
   export const OPENAI_API_KEY: string;
   export const GEMINI_API_KEY: string;
+  export const GEMINI_MODEL: string;
   export const GOOGLE_MAPS_API_KEY: string;
   export const CLEF_ENABLED: string;
   export const CLOUDFLARE_ACCOUNT_ID: string;

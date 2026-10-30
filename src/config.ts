@@ -6,6 +6,7 @@ import {
   DRIVING_SPEED_THRESHOLD_KMH,
   DRIVING_TRIGGER_INTERVAL_MIN,
   GEMINI_API_KEY,
+  GEMINI_MODEL,
   GOOGLE_MAPS_API_KEY,
   LLM_PROVIDER,
   MAX_LLM_CALLS_PER_TRIP,
@@ -25,6 +26,7 @@ function flag(value: string | undefined): boolean {
 export const config = {
   llmProvider: (LLM_PROVIDER || 'gemini').toLowerCase(),
   geminiApiKey: GEMINI_API_KEY || '',
+  geminiModel: (GEMINI_MODEL || 'gemini-flash-lite-latest').trim(),
   googleMapsApiKey: GOOGLE_MAPS_API_KEY || '',
   clefEnabled: flag(CLEF_ENABLED),
   cloudflareAccountId: CLOUDFLARE_ACCOUNT_ID || '',
