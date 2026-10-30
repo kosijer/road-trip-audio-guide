@@ -19,6 +19,7 @@ import {
 import { getCurrentLocation, requestLocationPermission } from './location';
 import { generateNarration } from './narration';
 import { rankPois } from './poi/discover';
+import { selectPoisForNarration } from './poi/rankWithDecision';
 import { cacheFirstDiscover } from './prefetch';
 import { applyHoursPolicy, lookupOpeningHours } from './places';
 import { speak, stopSpeaking } from './tts';
@@ -269,7 +270,8 @@ async function narrateOnce(
     }
   }
 
-  const selected = mode === 'driving' ? candidates.slice(0, 1) : candidates.slice(0, 3);
+  // Heuristic shortlist first; Clef (when enabled) re-ranks before Gemini writes.
+  const selected = await selectPoisForNarration(candidates, mode);
   const cacheKey = selected.map(p => p.id).join('|');
   const cached = await getNarration(cacheKey);
   let text = cached;

@@ -19,3 +19,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Walking mode now uses network location indoors (GPS timeout was showing a false "no network" error), sends a Wikipedia-compliant user agent, and expands the search radius if nothing is found nearby.
 - TTS speaking rate raised from 0.42 to 1.0 (normal Android speech speed).
 - Playback controls: stop speech, Slow/Normal/Fast rate (persisted), and Next story (another nearby place, not a rewrite of the same one).
+- Optional Cloudflare Clef decision ranking: re-orders a heuristic shortlist of nearby POIs before Gemini writes narration (`CLEF_ENABLED` + Cloudflare account token). Falls back to keyword score when disabled or on error.

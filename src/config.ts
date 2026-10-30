@@ -1,4 +1,7 @@
 import {
+  CLEF_ENABLED,
+  CLOUDFLARE_ACCOUNT_ID,
+  CLOUDFLARE_API_TOKEN,
   DRIVING_POI_RADIUS_M,
   DRIVING_SPEED_THRESHOLD_KMH,
   DRIVING_TRIGGER_INTERVAL_MIN,
@@ -14,10 +17,18 @@ function num(value: string | undefined, fallback: number): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function flag(value: string | undefined): boolean {
+  const normalized = (value || '').trim().toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes';
+}
+
 export const config = {
   llmProvider: (LLM_PROVIDER || 'gemini').toLowerCase(),
   geminiApiKey: GEMINI_API_KEY || '',
   googleMapsApiKey: GOOGLE_MAPS_API_KEY || '',
+  clefEnabled: flag(CLEF_ENABLED),
+  cloudflareAccountId: CLOUDFLARE_ACCOUNT_ID || '',
+  cloudflareApiToken: CLOUDFLARE_API_TOKEN || '',
   drivingTriggerIntervalMin: num(DRIVING_TRIGGER_INTERVAL_MIN, 3),
   drivingSpeedThresholdKmh: num(DRIVING_SPEED_THRESHOLD_KMH, 25),
   drivingPoiRadiusM: num(DRIVING_POI_RADIUS_M, 5000),
