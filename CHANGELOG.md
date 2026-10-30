@@ -17,3 +17,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Gradle 9 compatibility patch for `react-native-tts` (replace removed `jcenter()`).
 - Debug APK build via `./gradlew assembleDebug` (`android/app/build/outputs/apk/debug/app-debug.apk`).
 - Walking mode now uses network location indoors (GPS timeout was showing a false "no network" error), sends a Wikipedia-compliant user agent, and expands the search radius if nothing is found nearby.
+- TTS speaking rate raised from 0.42 to 1.0 (normal Android speech speed).
+- Playback controls: stop speech, Slow/Normal/Fast rate (persisted), and Next story (another nearby place, not a rewrite of the same one).

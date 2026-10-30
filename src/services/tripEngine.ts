@@ -29,6 +29,7 @@ export const STATUS_EVENT = 'rtag-status';
 const speedSamples: number[] = [];
 let tickTimer: ReturnType<typeof setInterval> | null = null;
 let ticking = false;
+let narrateTail: Promise<unknown> = Promise.resolve();
 
 function emit(status: TripStatus) {
   DeviceEventEmitter.emit(STATUS_EVENT, status);
@@ -177,10 +178,43 @@ export async function walkingNow(): Promise<TripStatus> {
   return setStatus({});
 }
 
+export async function narrateNext(): Promise<TripStatus> {
+  await stopSpeaking();
+  const allowed = await requestLocationPermission();
+  if (!allowed) {
+    return patch({ message: s.permissionNeeded });
+  }
+  await patch({ message: s.nextBusy });
+  let location: LocationSample;
+  try {
+    location = (await getStatus()).lastLocation ?? (await getCurrentLocation());
+  } catch (error) {
+    console.warn('location failed', error);
+    return patch({ message: s.locationFailed });
+  }
+  await patch({ lastLocation: location });
+  const mode = (await getStatus()).tripActive ? 'driving' : 'walking';
+  await maybeNarrate(location, mode, { skipHeard: true });
+  return setStatus({});
+}
+
 async function maybeNarrate(
   location: LocationSample,
   mode: 'driving' | 'walking',
+  opts?: { skipHeard?: boolean },
 ): Promise<void> {
+  const run = () => narrateOnce(location, mode, opts);
+  const next = narrateTail.then(run, run);
+  narrateTail = next;
+  await next;
+}
+
+async function narrateOnce(
+  location: LocationSample,
+  mode: 'driving' | 'walking',
+  opts?: { skipHeard?: boolean },
+): Promise<void> {
+  const skipHeard = mode === 'driving' || Boolean(opts?.skipHeard);
   const radius =
     mode === 'walking' ? config.walkingPoiRadiusM : config.drivingPoiRadiusM;
   let pois: Poi[] = [];
@@ -197,11 +231,15 @@ async function maybeNarrate(
     return;
   }
   const narrated = new Set(await getNarratedIds());
-  let candidates = rankPois(
-    mode === 'walking' ? pois : pois.filter(poi => !narrated.has(poi.id)),
-  );
+  const pickCandidates = (list: Poi[]) =>
+    rankPois(skipHeard ? list.filter(poi => !narrated.has(poi.id)) : list);
+  let candidates = pickCandidates(pois);
+  if (mode === 'walking' && candidates.length === 0 && skipHeard) {
+    pois = await cacheFirstDiscover(location, Math.max(radius, 3000));
+    candidates = pickCandidates(pois);
+  }
   if (candidates.length === 0) {
-    await patch({ message: s.noPoi });
+    await patch({ message: skipHeard ? s.noMorePoi : s.noPoi });
     return;
   }
 
@@ -226,7 +264,7 @@ async function maybeNarrate(
     }
     candidates = rankPois(withHours);
     if (candidates.length === 0) {
-      await patch({ message: s.noPoi });
+      await patch({ message: skipHeard ? s.noMorePoi : s.noPoi });
       return;
     }
   }
@@ -259,6 +297,7 @@ async function maybeNarrate(
   await patch({
     lastNarration: text,
     lastPoiTitle: selected[0]?.title,
+    lastPoiIds: selected.map(poi => poi.id),
     llmCalls,
     message: spoken ? selected[0]?.title ?? s.appName : s.ttsMissing,
   });

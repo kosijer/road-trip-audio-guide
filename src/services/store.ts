@@ -9,6 +9,7 @@ const KEY = {
   narrated: 'rtag:narrated',
   status: 'rtag:status',
   llmCalls: 'rtag:llmCalls',
+  speechPace: 'rtag:speechPace',
 };
 
 export const emptyStatus = (): TripStatus => ({
@@ -100,6 +101,20 @@ export async function resetTripMemory(): Promise<void> {
 export async function getLlmCalls(): Promise<number> {
   const raw = await AsyncStorage.getItem(KEY.llmCalls);
   return raw ? Number(raw) || 0 : 0;
+}
+
+export type SpeechPace = 'slow' | 'normal' | 'fast';
+
+export async function getSpeechPace(): Promise<SpeechPace> {
+  const raw = await AsyncStorage.getItem(KEY.speechPace);
+  if (raw === 'slow' || raw === 'normal' || raw === 'fast') {
+    return raw;
+  }
+  return 'normal';
+}
+
+export async function saveSpeechPace(pace: SpeechPace): Promise<void> {
+  await AsyncStorage.setItem(KEY.speechPace, pace);
 }
 
 export async function incrementLlmCalls(): Promise<number> {

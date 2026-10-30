@@ -1,11 +1,30 @@
+import { DeviceEventEmitter } from 'react-native';
 import Tts from 'react-native-tts';
+import { getSpeechPace, saveSpeechPace, type SpeechPace } from './store';
+
+export type { SpeechPace };
+
+export const TTS_EVENT = 'rtag-tts';
+
+export const SPEECH_RATES: Record<SpeechPace, number> = {
+  slow: 0.85,
+  normal: 1.0,
+  fast: 1.25,
+};
 
 type QueueItem = { text: string; resolve: () => void };
 
 let ready = false;
 let speaking = false;
+let ignoreStaleEvents = false;
 const queue: QueueItem[] = [];
 let listenersAttached = false;
+let currentPace: SpeechPace = 'normal';
+
+function emitSpeaking(next: boolean) {
+  speaking = next;
+  DeviceEventEmitter.emit(TTS_EVENT, { speaking: next });
+}
 
 async function ensureReady(): Promise<boolean> {
   if (ready) {
@@ -23,7 +42,8 @@ async function ensureReady(): Promise<boolean> {
         // try next
       }
     }
-    await Tts.setDefaultRate(0.42, true);
+    currentPace = await getSpeechPace();
+    await Tts.setDefaultRate(SPEECH_RATES[currentPace], true);
     ready = true;
     return true;
   } catch {
@@ -36,12 +56,22 @@ function attachListeners() {
     return;
   }
   listenersAttached = true;
+  Tts.addEventListener('tts-start', () => {
+    ignoreStaleEvents = false;
+    emitSpeaking(true);
+  });
   Tts.addEventListener('tts-finish', () => {
-    speaking = false;
+    if (ignoreStaleEvents) {
+      return;
+    }
+    emitSpeaking(false);
     playNext();
   });
   Tts.addEventListener('tts-cancel', () => {
-    speaking = false;
+    if (ignoreStaleEvents) {
+      return;
+    }
+    emitSpeaking(false);
     playNext();
   });
 }
@@ -54,13 +84,27 @@ function playNext() {
   if (!item) {
     return;
   }
-  speaking = true;
+  emitSpeaking(true);
   Tts.speak(item.text, {
     androidParams: {
       KEY_PARAM_STREAM: 'STREAM_MUSIC',
     },
   });
   item.resolve();
+}
+
+export async function getPace(): Promise<SpeechPace> {
+  currentPace = await getSpeechPace();
+  return currentPace;
+}
+
+export async function applySpeechPace(pace: SpeechPace): Promise<void> {
+  currentPace = pace;
+  await saveSpeechPace(pace);
+  const ok = await ensureReady();
+  if (ok) {
+    await Tts.setDefaultRate(SPEECH_RATES[pace], true);
+  }
 }
 
 export async function speak(text: string): Promise<boolean> {
@@ -77,12 +121,16 @@ export async function speak(text: string): Promise<boolean> {
 
 export async function stopSpeaking(): Promise<void> {
   queue.length = 0;
-  speaking = false;
+  ignoreStaleEvents = true;
+  emitSpeaking(false);
   try {
     await Tts.stop();
   } catch {
     // ignore
   }
+  setTimeout(() => {
+    ignoreStaleEvents = false;
+  }, 600);
 }
 
 export function isSpeaking(): boolean {

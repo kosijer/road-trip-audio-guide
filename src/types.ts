@@ -40,6 +40,7 @@ export type TripStatus = {
   lastCellId?: string;
   lastNarration?: string;
   lastPoiTitle?: string;
+  lastPoiIds?: string[];
   llmCalls: number;
   message: string;
   prefetchCount: number;

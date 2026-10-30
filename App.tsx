@@ -14,8 +14,17 @@ import { s } from './src/strings';
 import type { TripStatus } from './src/types';
 import { emptyStatus, getStatus } from './src/services/store';
 import { getCurrentLocation } from './src/services/location';
-import { endTrip, startTrip, STATUS_EVENT, walkingNow } from './src/services/tripEngine';
+import { endTrip, narrateNext, startTrip, STATUS_EVENT, walkingNow } from './src/services/tripEngine';
 import { runPrefetch } from './src/services/routePrefetch';
+import {
+  applySpeechPace,
+  getPace,
+  isSpeaking,
+  speak,
+  stopSpeaking,
+  TTS_EVENT,
+  type SpeechPace,
+} from './src/services/tts';
 
 function App() {
   return (
@@ -32,17 +41,25 @@ function AppScreen() {
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
   const [busy, setBusy] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const [pace, setPace] = useState<SpeechPace>('normal');
 
   useEffect(() => {
     void getStatus().then(setStatus);
+    void getPace().then(setPace);
     const sub = DeviceEventEmitter.addListener(STATUS_EVENT, (next: TripStatus) => {
       setStatus(next);
     });
+    const ttsSub = DeviceEventEmitter.addListener(TTS_EVENT, (payload: { speaking: boolean }) => {
+      setSpeaking(payload.speaking);
+    });
     const poll = setInterval(() => {
       void getStatus().then(setStatus);
+      setSpeaking(isSpeaking());
     }, 4000);
     return () => {
       sub.remove();
+      ttsSub.remove();
       clearInterval(poll);
     };
   }, []);
@@ -68,6 +85,36 @@ function AppScreen() {
       setBusy(false);
     }
   }, []);
+
+  const onStopSpeech = useCallback(async () => {
+    await stopSpeaking();
+    setSpeaking(false);
+  }, []);
+
+  const onNext = useCallback(async () => {
+    setBusy(true);
+    try {
+      setStatus(await narrateNext());
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  const onPace = useCallback(
+    async (next: SpeechPace) => {
+      const restart = isSpeaking() && Boolean(status.lastNarration);
+      if (restart) {
+        await stopSpeaking();
+        setSpeaking(false);
+      }
+      await applySpeechPace(next);
+      setPace(next);
+      if (restart && status.lastNarration) {
+        await speak(status.lastNarration);
+      }
+    },
+    [status.lastNarration],
+  );
 
   const onPrefetch = useCallback(async () => {
     if (!destination.trim()) {
@@ -116,8 +163,39 @@ function AppScreen() {
           style={[styles.secondary, busy && styles.disabled]}
           onPress={onWalk}
           disabled={busy}>
-          <Text style={styles.secondaryText}>{busy ? s.walkingBusy : s.walking}</Text>
+          <Text style={styles.secondaryText}>{s.walking}</Text>
         </Pressable>
+
+        <View style={styles.rowBtns}>
+          <Pressable
+            style={[styles.halfBtn, !speaking && styles.disabled]}
+            onPress={onStopSpeech}
+            disabled={!speaking}>
+            <Text style={styles.secondaryText}>{s.stopSpeech}</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.halfBtn, busy && styles.disabled]}
+            onPress={onNext}
+            disabled={busy}>
+            <Text style={styles.secondaryText}>{s.nextStory}</Text>
+          </Pressable>
+        </View>
+
+        <Text style={styles.section}>{s.speechRate}</Text>
+        <View style={styles.rowBtns}>
+          {(['slow', 'normal', 'fast'] as const).map(option => (
+            <Pressable
+              key={option}
+              style={[styles.paceBtn, pace === option && styles.paceSelected]}
+              onPress={() => {
+                void onPace(option);
+              }}>
+              <Text style={[styles.paceText, pace === option && styles.paceTextSelected]}>
+                {option === 'slow' ? s.speechSlow : option === 'fast' ? s.speechFast : s.speechNormal}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
 
         <Text style={styles.section}>{s.status}</Text>
         <View style={styles.card}>
@@ -199,6 +277,30 @@ const styles = StyleSheet.create({
     borderColor: '#c47b3b',
   },
   secondaryText: { color: '#f4e6d4', fontSize: 18, fontWeight: '600' },
+  rowBtns: { flexDirection: 'row', gap: 10 },
+  halfBtn: {
+    flex: 1,
+    minHeight: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#3a312b',
+    borderWidth: 1,
+    borderColor: '#c47b3b',
+  },
+  paceBtn: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#261f1b',
+    borderWidth: 1,
+    borderColor: '#3a312b',
+  },
+  paceSelected: { backgroundColor: '#3a312b', borderColor: '#c47b3b' },
+  paceText: { color: '#cbbbaa', fontSize: 16, fontWeight: '600' },
+  paceTextSelected: { color: '#f4e6d4' },
   disabled: { opacity: 0.6 },
   section: { color: '#c47b3b', fontSize: 14, fontWeight: '700', marginTop: 8 },
   hint: { color: '#8a7d72', fontSize: 13 },

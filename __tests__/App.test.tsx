@@ -15,6 +15,8 @@ test('renders Serbian home screen', async () => {
   expect(text).toContain('Vodič za put');
   expect(text).toContain('Pokreni vožnju');
   expect(text).toContain('Šta ima u okolini?');
+  expect(text).toContain('Zaustavi');
+  expect(text).toContain('Sledeća');
   await ReactTestRenderer.act(() => {
     tree.unmount();
   });

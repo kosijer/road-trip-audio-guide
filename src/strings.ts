@@ -24,6 +24,14 @@ export const s = {
   ttsMissing:
     'Tekst je spreman, ali TTS nije dostupan. Instalirajte srpski glas u podešavanjima Google teksta u govor.',
   lastStory: 'Poslednja priča',
+  stopSpeech: 'Zaustavi',
+  nextStory: 'Sledeća',
+  nextBusy: 'Tražim sledeću priču…',
+  noMorePoi: 'Nema više mesta u okolini.',
+  speechRate: 'Brzina glasa',
+  speechSlow: 'Sporo',
+  speechNormal: 'Normalno',
+  speechFast: 'Brzo',
   status: 'Status',
   prefetchHint:
     'Opciono: preuzmite mesta duž rute dok imate Wi‑Fi, pa pokrenite vožnju.',
