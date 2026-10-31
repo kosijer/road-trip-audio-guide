@@ -63,4 +63,7 @@ export const en: Record<StringKey, string> = {
     'It is raining now, so outdoor sites may not be pleasant.',
   weatherRainLikely: 'Rain is likely in the next hour.',
   hoursClosedOutdoor: 'It is currently closed, but you can still see it from outside.',
+  mapTitle: 'Nearby map',
+  mapWaiting: 'Waiting for location to show the map…',
+  mapYou: 'You',
 };

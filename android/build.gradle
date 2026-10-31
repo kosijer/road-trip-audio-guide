@@ -6,6 +6,9 @@ buildscript {
         targetSdkVersion = 36
         ndkVersion = "27.1.12297006"
         kotlinVersion = "2.2.0"
+        // react-native-maps (Google Maps on Android)
+        playServicesVersion = "18.6.0"
+        androidMapsUtilsVersion = "3.8.2"
     }
     repositories {
         google()

@@ -64,4 +64,7 @@ export const sr: Record<StringKey, string> = {
     'Trenutno pada kiša, pa otvoreni lokaliteti možda nisu prijatni.',
   weatherRainLikely: 'U narednom satu je verovatna kiša.',
   hoursClosedOutdoor: 'Trenutno je zatvoreno, ali se može videti sa spolja.',
+  mapTitle: 'Mapa okoline',
+  mapWaiting: 'Čekam lokaciju da prikažem mapu…',
+  mapYou: 'Vi',
 };

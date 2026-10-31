@@ -315,6 +315,12 @@ async function narrateOnce(
     lastNarration: text,
     lastPoiTitle: selected[0]?.title,
     lastPoiIds: selected.map(poi => poi.id),
+    lastPoiMarkers: selected.map(poi => ({
+      id: poi.id,
+      title: poi.title,
+      latitude: poi.location.latitude,
+      longitude: poi.location.longitude,
+    })),
     llmCalls,
     message: spoken ? selected[0]?.title ?? t('appName') : t('ttsMissing'),
   });

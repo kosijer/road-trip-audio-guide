@@ -41,6 +41,8 @@ export type TripStatus = {
   lastNarration?: string;
   lastPoiTitle?: string;
   lastPoiIds?: string[];
+  /** Coordinates for map markers of the last narrated place(s). */
+  lastPoiMarkers?: Array<{ id: string; title: string; latitude: number; longitude: number }>;
   llmCalls: number;
   message: string;
   prefetchCount: number;

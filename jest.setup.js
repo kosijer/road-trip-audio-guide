@@ -52,6 +52,19 @@ jest.mock('react-native-tts', () => ({
   },
 }));
 
+jest.mock('react-native-maps', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const Mock = props => React.createElement(View, props, props.children);
+  return {
+    __esModule: true,
+    default: Mock,
+    Marker: Mock,
+    Circle: Mock,
+    PROVIDER_GOOGLE: 'google',
+  };
+});
+
 jest.mock('react-native-safe-area-context', () => {
   const inset = { top: 0, right: 0, bottom: 0, left: 0 };
   return {

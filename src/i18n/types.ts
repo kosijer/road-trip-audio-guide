@@ -59,4 +59,7 @@ export type StringKey =
   | 'diagnostics'
   | 'weatherRainingNow'
   | 'weatherRainLikely'
-  | 'hoursClosedOutdoor';
+  | 'hoursClosedOutdoor'
+  | 'mapTitle'
+  | 'mapWaiting'
+  | 'mapYou';

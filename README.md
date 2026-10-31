@@ -36,7 +36,11 @@ Code: [`src/services/decision/clef.ts`](src/services/decision/clef.ts), [`src/se
 - Optional Clef decision ranking before narration
 - Weather caveats from Open-Meteo (real GPS even when debug POI location is on)
 
-Map view of nearby POIs is planned for a later change.
+### Maps (Around tab)
+
+Uses the same `GOOGLE_MAPS_API_KEY` already in `.env` via **Maps SDK for Android** (Google Cloud free monthly credit; personal volume stays free). Enable **Maps SDK for Android** on that key if the map is blank.
+
+No extra paid map product is required.
 
 ## Run
 

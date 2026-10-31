@@ -1,11 +1,14 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { LastStoryCard } from '../components/LastStoryCard';
+import { NearbyMap } from '../components/NearbyMap';
 import { PlaybackRow } from '../components/PlaybackRow';
 import { useI18n } from '../hooks/useI18n';
+import { config } from '../config';
+import { getCurrentLocation } from '../services/location';
 import { walkingNow } from '../services/tripEngine';
 import { colors, sharedStyles } from '../theme';
-import type { TripStatus } from '../types';
+import type { GeoPoint, TripStatus } from '../types';
 
 type Props = {
   status: TripStatus;
@@ -27,11 +30,38 @@ export function AroundScreen({
   onNext,
 }: Props) {
   const { t } = useI18n();
+  const [mapCenter, setMapCenter] = useState<GeoPoint | null>(
+    status.lastLocation ?? null,
+  );
+
+  useEffect(() => {
+    if (status.lastLocation) {
+      setMapCenter(status.lastLocation);
+      return;
+    }
+    let cancelled = false;
+    void getCurrentLocation()
+      .then(here => {
+        if (!cancelled) {
+          setMapCenter(here);
+        }
+      })
+      .catch(() => {
+        // Keep placeholder until the user taps "what's around".
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [status.lastLocation]);
 
   const onWalk = useCallback(async () => {
     setBusy(true);
     try {
-      setStatus(await walkingNow());
+      const next = await walkingNow();
+      setStatus(next);
+      if (next.lastLocation) {
+        setMapCenter(next.lastLocation);
+      }
     } finally {
       setBusy(false);
     }
@@ -44,6 +74,15 @@ export function AroundScreen({
       <View style={sharedStyles.headerBlock}>
         <Text style={sharedStyles.screenTitle}>{t('tabAround')}</Text>
         <Text style={sharedStyles.subtitle}>{t('subtitle')}</Text>
+      </View>
+
+      <View style={sharedStyles.sectionCard}>
+        <Text style={sharedStyles.sectionCardTitle}>{t('mapTitle')}</Text>
+        <NearbyMap
+          center={mapCenter}
+          markers={status.lastPoiMarkers}
+          radiusM={config.walkingPoiRadiusM}
+        />
       </View>
 
       <Pressable
