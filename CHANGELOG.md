@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- App renamed to **Along**; launcher icon is a coral arrow that hints at the letter A on a deep navy field.
+- Color system refreshed: navy night road + coral accent + teal highlights (replacing the flat brown palette).
+
 ### Added
 - React Native 0.87 Android app scaffold (`com.roadtripaudioguide`) with `.env` config via `react-native-dotenv`.
 - Location service with Start/End Trip, Android 14 foreground service, GPS reads, and speed-based motion detection.

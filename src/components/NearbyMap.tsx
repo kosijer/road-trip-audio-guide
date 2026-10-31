@@ -78,7 +78,7 @@ export function NearbyMap({
           center={center}
           radius={radiusM}
           strokeColor={colors.accent}
-          fillColor="rgba(208, 137, 74, 0.12)"
+          fillColor="rgba(255, 122, 89, 0.14)"
           strokeWidth={1}
         />
         {markers.map(marker => (

@@ -1,8 +1,8 @@
 import type { StringKey } from './types';
 
 export const sr: Record<StringKey, string> = {
-  appName: 'Vodič za put',
-  subtitle: 'Audio pratnja tokom vožnje i šetnje',
+  appName: 'Along',
+  subtitle: 'Priče duž puta',
   tabDrive: 'Vožnja',
   tabAround: 'Okolina',
   tabHistory: 'Istorija',

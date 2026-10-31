@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconWellOn: {
-    backgroundColor: 'rgba(208, 137, 74, 0.18)',
+    backgroundColor: 'rgba(255, 122, 89, 0.20)',
   },
   label: {
     ...type.caption,

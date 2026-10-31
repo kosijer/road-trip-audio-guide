@@ -1,27 +1,31 @@
 import { Platform, StyleSheet } from 'react-native';
 
-/** Dark travel-companion palette with Material-ish tonal roles. */
+/**
+ * Along palette — deep navy night road with coral energy and teal spark.
+ * Dark enough for driving, lively enough to not feel muddy brown.
+ */
 export const colors = {
-  bg: '#14110f',
-  surface: '#1c1815',
-  card: '#241f1b',
-  cardElevated: '#2a2420',
-  border: '#3a322c',
-  borderSoft: '#322b26',
-  accent: '#d0894a',
-  accentMuted: '#8a5a32',
-  text: '#f3e8da',
-  muted: '#c4b5a5',
-  dim: '#8f8174',
-  message: '#e4d4c0',
-  story: '#d6c6b2',
-  go: '#2f6f4e',
-  goPressed: '#265a40',
-  stop: '#9a4038',
-  stopPressed: '#7e342e',
+  bg: '#07131f',
+  surface: '#0e1e30',
+  card: '#152a40',
+  cardElevated: '#1c3550',
+  border: '#2a4666',
+  borderSoft: '#213750',
+  accent: '#ff7a59',
+  accentMuted: '#c45a40',
+  accentSoft: '#5eead4',
+  text: '#f2f7ff',
+  muted: '#a9c0d8',
+  dim: '#7e97b0',
+  message: '#d7e6f5',
+  story: '#c5d6e8',
+  go: '#14b8a6',
+  goPressed: '#0f766e',
+  stop: '#f43f5e',
+  stopPressed: '#be123c',
   white: '#fff',
-  ripple: 'rgba(243, 232, 218, 0.12)',
-  overlay: 'rgba(0, 0, 0, 0.25)',
+  ripple: 'rgba(255, 122, 89, 0.16)',
+  overlay: 'rgba(7, 19, 31, 0.45)',
 };
 
 export const space = {
@@ -64,8 +68,8 @@ export const elevation = Platform.select({
   default: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
   },
 });
 
@@ -138,7 +142,7 @@ export const sharedStyles = StyleSheet.create({
     paddingHorizontal: space.md,
   },
   chipSelected: {
-    backgroundColor: colors.accentMuted,
+    backgroundColor: 'rgba(255, 122, 89, 0.22)',
     borderColor: colors.accent,
   },
   chipText: { ...type.label, color: colors.muted },
@@ -146,7 +150,7 @@ export const sharedStyles = StyleSheet.create({
   disabled: { opacity: 0.45 },
   section: {
     ...type.section,
-    color: colors.accent,
+    color: colors.accentSoft,
     marginBottom: -space.xs,
   },
   hint: { ...type.caption, color: colors.dim },
@@ -168,7 +172,7 @@ export const sharedStyles = StyleSheet.create({
   },
   sectionCardTitle: {
     ...type.section,
-    color: colors.accent,
+    color: colors.accentSoft,
   },
   row: {
     flexDirection: 'row',

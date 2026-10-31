@@ -1,8 +1,8 @@
 import type { StringKey } from './types';
 
 export const en: Record<StringKey, string> = {
-  appName: 'Road Trip Audio Guide',
-  subtitle: 'Spoken companion while you drive or walk',
+  appName: 'Along',
+  subtitle: 'Stories along the way',
   tabDrive: 'Drive',
   tabAround: 'Around',
   tabHistory: 'History',

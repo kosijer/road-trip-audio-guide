@@ -116,7 +116,7 @@ async function startForegroundKeepAlive(): Promise<void> {
     taskTitle: t('tripActive'),
     taskDesc: t('appName'),
     taskIcon: { name: 'ic_launcher', type: 'mipmap' },
-    color: '#c47b3b',
+      color: '#ff7a59',
     linkingURI: 'roadtripaudioguide://trip',
     foregroundServiceType: ['location'],
   });

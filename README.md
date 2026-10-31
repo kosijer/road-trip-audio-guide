@@ -1,6 +1,6 @@
-# Road Trip Audio Guide / Vodič za put
+# Along
 
-Android companion app that narrates nearby historical places while you drive or walk. Navigation stays in Google Maps; this app only talks.
+Android companion app that narrates nearby places while you drive or walk. Navigation stays in Google Maps; Along only talks.
 
 UI defaults to English (Serbian available in Settings). Narration language can follow the UI or be set separately. Active development is for general road / city use.
 
