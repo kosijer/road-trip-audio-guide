@@ -71,13 +71,7 @@ export function AroundScreen({
     <ScrollView
       contentContainerStyle={sharedStyles.content}
       keyboardShouldPersistTaps="handled">
-      <View style={sharedStyles.headerBlock}>
-        <Text style={sharedStyles.screenTitle}>{t('tabAround')}</Text>
-        <Text style={sharedStyles.subtitle}>{t('subtitle')}</Text>
-      </View>
-
-      <View style={sharedStyles.sectionCard}>
-        <Text style={sharedStyles.sectionCardTitle}>{t('mapTitle')}</Text>
+      <View style={sharedStyles.mapCard}>
         <NearbyMap
           center={mapCenter}
           markers={status.lastPoiMarkers}

@@ -1,11 +1,12 @@
+import { decodePolyline, sampleAlongRouteByCount } from '../geo';
 import { config } from '../config';
-import { decodePolyline, sampleAlongRoute } from '../geo';
 import { fetchJsonSilent } from './http';
 import type { GeoPoint } from '../types';
 
 export async function fetchRouteSamples(
   origin: string,
   destination: string,
+  sampleTarget: number,
 ): Promise<GeoPoint[]> {
   if (!config.googleMapsApiKey) {
     return [];
@@ -23,5 +24,5 @@ export async function fetchRouteSamples(
   if (!encoded) {
     return [];
   }
-  return sampleAlongRoute(decodePolyline(encoded), config.prefetchSampleKm);
+  return sampleAlongRouteByCount(decodePolyline(encoded), sampleTarget);
 }

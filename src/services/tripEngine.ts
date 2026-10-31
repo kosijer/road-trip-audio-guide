@@ -1,5 +1,4 @@
 import { DeviceEventEmitter } from 'react-native';
-import BackgroundService from 'react-native-background-actions';
 import { config } from '../config';
 import { t } from '../i18n';
 import type { LocationSample, Poi, TripStatus } from '../types';
@@ -12,6 +11,7 @@ import {
   getStatus,
   incrementLlmCalls,
   markNarrated,
+  recordVisit,
   resetTripMemory,
   saveNarration,
   setStatus,
@@ -30,6 +30,43 @@ import { speak, stopSpeaking } from './tts';
 import { getWeather } from './weather';
 
 export const STATUS_EVENT = 'rtag-status';
+
+type BackgroundActionsApi = {
+  isRunning: () => boolean;
+  start: (
+    task: (args?: Record<string, unknown>) => Promise<void>,
+    options: Record<string, unknown>,
+  ) => Promise<void>;
+  stop: () => Promise<void>;
+};
+
+/**
+ * Resolve the background-actions singleton across Metro CJS/ESM interop.
+ * Native start is best-effort — the in-app tick timer still drives narration.
+ */
+function getBackgroundActions(): BackgroundActionsApi | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require('react-native-background-actions') as
+      | BackgroundActionsApi
+      | { default?: BackgroundActionsApi };
+    const svc =
+      mod && typeof (mod as BackgroundActionsApi).isRunning === 'function'
+        ? (mod as BackgroundActionsApi)
+        : (mod as { default?: BackgroundActionsApi }).default;
+    if (
+      svc &&
+      typeof svc.isRunning === 'function' &&
+      typeof svc.start === 'function' &&
+      typeof svc.stop === 'function'
+    ) {
+      return svc;
+    }
+  } catch (error) {
+    console.warn('background-actions unavailable', error);
+  }
+  return null;
+}
 
 const speedSamples: number[] = [];
 let tickTimer: ReturnType<typeof setInterval> | null = null;
@@ -58,14 +95,39 @@ function isMoving(speedKmh: number): boolean {
 }
 
 async function keepAliveTask() {
+  const bg = getBackgroundActions();
   await new Promise<void>(resolve => {
     const handle = setInterval(() => {
-      if (!BackgroundService.isRunning()) {
+      if (!bg || !bg.isRunning()) {
         clearInterval(handle);
         resolve();
       }
     }, 5000);
   });
+}
+
+async function startForegroundKeepAlive(): Promise<void> {
+  const bg = getBackgroundActions();
+  if (!bg || bg.isRunning()) {
+    return;
+  }
+  await bg.start(keepAliveTask, {
+    taskName: 'Trip',
+    taskTitle: t('tripActive'),
+    taskDesc: t('appName'),
+    taskIcon: { name: 'ic_launcher', type: 'mipmap' },
+    color: '#c47b3b',
+    linkingURI: 'roadtripaudioguide://trip',
+    foregroundServiceType: ['location'],
+  });
+}
+
+async function stopForegroundKeepAlive(): Promise<void> {
+  const bg = getBackgroundActions();
+  if (!bg || !bg.isRunning()) {
+    return;
+  }
+  await bg.stop();
 }
 
 export async function startTrip(): Promise<TripStatus> {
@@ -82,25 +144,21 @@ export async function startTrip(): Promise<TripStatus> {
     message: t('tripActive'),
   });
 
-  if (!BackgroundService.isRunning()) {
-    await BackgroundService.start(keepAliveTask, {
-      taskName: 'Trip',
-      taskTitle: t('tripActive'),
-      taskDesc: t('appName'),
-      taskIcon: { name: 'ic_launcher', type: 'mipmap' },
-      color: '#c47b3b',
-      linkingURI: 'roadtripaudioguide://trip',
-      foregroundServiceType: ['location'],
-    });
+  try {
+    await startForegroundKeepAlive();
+  } catch (error) {
+    console.warn('foreground keep-alive failed; trip continues in-app', error);
   }
 
   if (!tickTimer) {
     tickTimer = setInterval(() => {
-      void drivingTick();
+      void drivingTick().catch(error =>
+        console.warn('drivingTick failed', error),
+      );
     }, config.locationTickMs);
   }
-  void drivingTick();
-  return setStatus({});
+  void drivingTick().catch(error => console.warn('drivingTick failed', error));
+  return getStatus();
 }
 
 export async function endTrip(): Promise<TripStatus> {
@@ -109,9 +167,7 @@ export async function endTrip(): Promise<TripStatus> {
     tickTimer = null;
   }
   try {
-    if (BackgroundService.isRunning()) {
-      await BackgroundService.stop();
-    }
+    await stopForegroundKeepAlive();
   } catch {
     // ignore
   }
@@ -308,6 +364,21 @@ async function narrateOnce(
   }
   for (const poi of selected) {
     await markNarrated(poi.id);
+  }
+  // One history entry per story — primary place only (avoids near-duplicate rows).
+  const primary = selected[0];
+  if (primary) {
+    await recordVisit({
+      poiId: primary.id,
+      title: primary.title,
+      category: primary.category,
+      summary: primary.summary,
+      source: primary.source,
+      latitude: primary.location.latitude,
+      longitude: primary.location.longitude,
+      mode,
+      narrationExcerpt: text.slice(0, 280),
+    });
   }
   const spoken = await speak(text);
   const llmCalls = await getLlmCalls();

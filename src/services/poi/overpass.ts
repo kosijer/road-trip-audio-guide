@@ -15,25 +15,37 @@ type OverpassResponse = {
   }>;
 };
 
+const OVERPASS_ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+];
+
 export async function searchOverpass(
   center: GeoPoint,
   radiusM: number,
 ): Promise<Poi[]> {
-  const query = `[out:json][timeout:20];
+  const query = `[out:json][timeout:12];
 (
   nwr["historic"](around:${Math.round(radiusM)},${center.latitude},${center.longitude});
   nwr["tourism"~"attraction|museum|viewpoint|artwork|archaeological_site"](around:${Math.round(radiusM)},${center.latitude},${center.longitude});
 );
 out center tags 35;`;
-  const data = await fetchJsonSilent<OverpassResponse>(
-    'https://overpass-api.de/api/interpreter',
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `data=${encodeURIComponent(query)}`,
-    },
-    20_000,
-  );
+  const body = `data=${encodeURIComponent(query)}`;
+  let data: OverpassResponse | null = null;
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    data = await fetchJsonSilent<OverpassResponse>(
+      endpoint,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body,
+      },
+      14_000,
+    );
+    if (data?.elements) {
+      break;
+    }
+  }
   const elements = data?.elements ?? [];
   return elements
     .map(el => {

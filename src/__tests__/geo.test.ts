@@ -1,4 +1,8 @@
-import { haversineM, sampleAlongRoute } from '../geo';
+import { haversineM, sampleAlongRoute, sampleAlongRouteByCount } from '../geo';
+import {
+  humanCategory,
+  searchPointsForPlaceTarget,
+} from '../services/routePrefetch';
 import { interestingness, scoreKeywords } from '../services/poi/score';
 
 describe('geo', () => {
@@ -18,6 +22,30 @@ describe('geo', () => {
     const samples = sampleAlongRoute(points, 8);
     expect(samples.length).toBeGreaterThan(2);
     expect(samples.length).toBeLessThan(points.length);
+  });
+
+  it('samples a fixed count evenly along the route', () => {
+    const points = [];
+    for (let i = 0; i < 50; i++) {
+      points.push({ latitude: 51.5, longitude: -0.1 + i * 0.02 });
+    }
+    const samples = sampleAlongRouteByCount(points, 5);
+    expect(samples).toHaveLength(5);
+    expect(samples[0]).toEqual(points[0]);
+    expect(samples[4].longitude).toBeCloseTo(points[49].longitude, 5);
+  });
+});
+
+describe('prefetch place target', () => {
+  it('uses matching scan count for small place targets', () => {
+    expect(searchPointsForPlaceTarget(5)).toBe(5);
+    expect(searchPointsForPlaceTarget(12)).toBe(12);
+    expect(searchPointsForPlaceTarget(50)).toBeLessThanOrEqual(16);
+  });
+
+  it('hides raw Wikidata Q-ids from category labels', () => {
+    expect(humanCategory('Q3957')).toBeUndefined();
+    expect(humanCategory('museum')).toBe('museum');
   });
 });
 

@@ -13,6 +13,14 @@ jest.mock('@react-native-async-storage/async-storage', () => {
       keys.forEach(key => mockMemory.delete(key));
       return Promise.resolve();
     }),
+    removeMany: jest.fn(keys => {
+      keys.forEach(key => mockMemory.delete(key));
+      return Promise.resolve();
+    }),
+    removeItem: jest.fn(key => {
+      mockMemory.delete(key);
+      return Promise.resolve();
+    }),
     clear: jest.fn(() => {
       mockMemory.clear();
       return Promise.resolve();

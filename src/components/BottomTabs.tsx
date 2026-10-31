@@ -1,88 +1,111 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { t } from '../i18n';
 import { colors, radius, space, touchMin, type } from '../theme';
+import { AroundIcon, DriveIcon, HistoryIcon } from './Icons';
 
-export type AppTab = 'drive' | 'around' | 'settings';
+export type MainTab = 'around' | 'drive' | 'history';
+/** @deprecated use MainTab; settings lives in the header now */
+export type AppTab = MainTab | 'settings';
 
 type Props = {
-  active: AppTab;
-  onChange: (tab: AppTab) => void;
+  active: MainTab;
+  onChange: (tab: MainTab) => void;
   bottomInset: number;
+  hidden?: boolean;
 };
 
 const TABS: Array<{
-  id: AppTab;
-  labelKey: 'tabDrive' | 'tabAround' | 'tabSettings';
+  id: MainTab;
+  labelKey: 'tabAround' | 'tabDrive' | 'tabHistory';
+  Icon: typeof AroundIcon;
 }> = [
-  { id: 'drive', labelKey: 'tabDrive' },
-  { id: 'around', labelKey: 'tabAround' },
-  { id: 'settings', labelKey: 'tabSettings' },
+  { id: 'around', labelKey: 'tabAround', Icon: AroundIcon },
+  { id: 'drive', labelKey: 'tabDrive', Icon: DriveIcon },
+  { id: 'history', labelKey: 'tabHistory', Icon: HistoryIcon },
 ];
 
-export function BottomTabs({ active, onChange, bottomInset }: Props) {
+export function BottomTabs({
+  active,
+  onChange,
+  bottomInset,
+  hidden,
+}: Props) {
+  if (hidden) {
+    return <View style={{ height: bottomInset }} />;
+  }
+
   return (
-    <View
-      style={[
-        styles.bar,
-        { paddingBottom: Math.max(bottomInset, space.sm) },
-      ]}>
-      {TABS.map(tab => {
-        const selected = tab.id === active;
-        return (
-          <Pressable
-            key={tab.id}
-            accessibilityRole="tab"
-            accessibilityState={{ selected }}
-            android_ripple={{ color: colors.ripple, borderless: false }}
-            style={styles.tab}
-            onPress={() => onChange(tab.id)}>
-            <View
-              style={[styles.indicator, selected && styles.indicatorOn]}
-            />
-            <Text style={[styles.label, selected && styles.labelSelected]}>
-              {t(tab.labelKey)}
-            </Text>
-          </Pressable>
-        );
-      })}
+    <View style={[styles.wrap, { paddingBottom: Math.max(bottomInset, space.sm) }]}>
+      <View style={styles.bar}>
+        {TABS.map(tab => {
+          const selected = tab.id === active;
+          const color = selected ? colors.accent : colors.dim;
+          const { Icon } = tab;
+          return (
+            <Pressable
+              key={tab.id}
+              accessibilityRole="tab"
+              accessibilityState={{ selected }}
+              android_ripple={{ color: colors.ripple, borderless: false }}
+              style={styles.tab}
+              onPress={() => onChange(tab.id)}>
+              <View style={[styles.iconWell, selected && styles.iconWellOn]}>
+                <Icon color={color} size={20} />
+              </View>
+              <Text style={[styles.label, selected && styles.labelSelected]}>
+                {t(tab.labelKey)}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrap: {
+    paddingHorizontal: space.md,
+    paddingTop: space.sm,
+    backgroundColor: colors.bg,
+  },
   bar: {
     flexDirection: 'row',
-    paddingHorizontal: space.sm,
-    paddingTop: space.xs,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
+    borderRadius: radius.lg,
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    paddingVertical: space.xs,
+    paddingHorizontal: space.xs,
   },
   tab: {
     flex: 1,
-    minHeight: touchMin + 8,
+    minHeight: touchMin + 10,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    borderRadius: radius.sm,
+    gap: 4,
+    borderRadius: radius.md,
     paddingVertical: space.sm,
   },
-  indicator: {
-    width: 22,
-    height: 3,
+  iconWell: {
+    width: 36,
+    height: 28,
     borderRadius: radius.pill,
-    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  indicatorOn: {
-    backgroundColor: colors.accent,
+  iconWellOn: {
+    backgroundColor: 'rgba(208, 137, 74, 0.18)',
   },
   label: {
     ...type.caption,
+    fontSize: 12,
+    lineHeight: 16,
     fontWeight: '600',
     color: colors.dim,
   },
   labelSelected: {
-    color: colors.text,
+    color: colors.accent,
     fontWeight: '700',
   },
 });

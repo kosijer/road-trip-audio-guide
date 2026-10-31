@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { DeviceEventEmitter, StatusBar, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BottomTabs, type AppTab } from './src/components/BottomTabs';
+import { AppHeader } from './src/components/AppHeader';
+import { BottomTabs, type MainTab } from './src/components/BottomTabs';
 import { useI18n } from './src/hooks/useI18n';
 import { hydrateI18n } from './src/i18n';
 import { AroundScreen } from './src/screens/AroundScreen';
 import { DriveScreen } from './src/screens/DriveScreen';
+import { HistoryScreen } from './src/screens/HistoryScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import {
   FAKE_LOCATIONS,
@@ -32,7 +34,7 @@ import type { TripStatus } from './src/types';
 function App() {
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="light-content" backgroundColor={colors.surface} />
       <AppScreen />
     </SafeAreaProvider>
   );
@@ -41,7 +43,8 @@ function App() {
 function AppScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useI18n();
-  const [tab, setTab] = useState<AppTab>('drive');
+  const [tab, setTab] = useState<MainTab>('around');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [status, setStatus] = useState<TripStatus>(emptyStatus());
   const [busy, setBusy] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -118,29 +121,42 @@ function AppScreen() {
     [t],
   );
 
+  const onChangeTab = useCallback((next: MainTab) => {
+    setSettingsOpen(false);
+    setTab(next);
+  }, []);
+
+  const headerTitle = settingsOpen
+    ? t('settingsTitle')
+    : tab === 'around'
+      ? t('tabAround')
+      : tab === 'drive'
+        ? t('tabDrive')
+        : t('tabHistory');
+
   if (!ready) {
     return <View style={sharedStyles.root} />;
   }
 
   return (
-    <View
-      style={[
-        sharedStyles.root,
-        { paddingTop: insets.top },
-      ]}>
+    <View style={[sharedStyles.root, { paddingTop: insets.top }]}>
+      <AppHeader
+        title={headerTitle}
+        mode={settingsOpen ? 'settings' : 'main'}
+        onPressSettings={() => setSettingsOpen(true)}
+        onPressBack={() => setSettingsOpen(false)}
+      />
       <View style={{ flex: 1 }}>
-        {tab === 'drive' ? (
-          <DriveScreen
+        {settingsOpen ? (
+          <SettingsScreen
             status={status}
-            setStatus={setStatus}
-            speaking={speaking}
-            busy={busy}
-            setBusy={setBusy}
-            onStopSpeech={onStopSpeech}
-            onNext={onNext}
+            speechRate={speechRate}
+            setSpeechRate={setSpeechRate}
+            fakeLocation={fakeLocation}
+            onFakeLocation={onFakeLocation}
           />
         ) : null}
-        {tab === 'around' ? (
+        {!settingsOpen && tab === 'around' ? (
           <AroundScreen
             status={status}
             setStatus={setStatus}
@@ -151,17 +167,25 @@ function AppScreen() {
             onNext={onNext}
           />
         ) : null}
-        {tab === 'settings' ? (
-          <SettingsScreen
+        {!settingsOpen && tab === 'drive' ? (
+          <DriveScreen
             status={status}
-            speechRate={speechRate}
-            setSpeechRate={setSpeechRate}
-            fakeLocation={fakeLocation}
-            onFakeLocation={onFakeLocation}
+            setStatus={setStatus}
+            speaking={speaking}
+            busy={busy}
+            setBusy={setBusy}
+            onStopSpeech={onStopSpeech}
+            onNext={onNext}
           />
         ) : null}
+        {!settingsOpen && tab === 'history' ? <HistoryScreen /> : null}
       </View>
-      <BottomTabs active={tab} onChange={setTab} bottomInset={insets.bottom} />
+      <BottomTabs
+        active={tab}
+        onChange={onChangeTab}
+        bottomInset={insets.bottom}
+        hidden={settingsOpen}
+      />
     </View>
   );
 }

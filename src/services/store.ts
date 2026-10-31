@@ -1,7 +1,77 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { cellId, haversineM } from '../geo';
 import type { AppLanguage } from '../i18n/types';
-import type { Poi, TripStatus } from '../types';
+import type {
+  Poi,
+  PrefetchBatch,
+  PrefetchPlaceTarget,
+  TripStatus,
+  VisitRating,
+  VisitRecord,
+} from '../types';
+import { PREFETCH_PLACE_OPTIONS } from '../types';
+
+const VISIT_DEDUP_METERS = 200;
+
+function normalizeVisitTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\u0400-\u04ff]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function sameVisitPlace(
+  a: Pick<VisitRecord, 'poiId' | 'title' | 'latitude' | 'longitude'>,
+  b: Pick<VisitRecord, 'poiId' | 'title' | 'latitude' | 'longitude'>,
+): boolean {
+  if (a.poiId === b.poiId) {
+    return true;
+  }
+  if (normalizeVisitTitle(a.title) !== normalizeVisitTitle(b.title)) {
+    return false;
+  }
+  return (
+    haversineM(
+      { latitude: a.latitude, longitude: a.longitude },
+      { latitude: b.latitude, longitude: b.longitude },
+    ) <= VISIT_DEDUP_METERS
+  );
+}
+
+/** Keep newest / rated visit when the same place appears more than once. */
+export function dedupeVisits(visits: VisitRecord[]): VisitRecord[] {
+  const kept: VisitRecord[] = [];
+  for (const visit of visits) {
+    const idx = kept.findIndex(existing => sameVisitPlace(existing, visit));
+    if (idx < 0) {
+      kept.push(visit);
+      continue;
+    }
+    const existing = kept[idx];
+    const preferVisit =
+      (visit.rating != null && existing.rating == null) ||
+      visit.narratedAt >= existing.narratedAt;
+    if (preferVisit) {
+      kept[idx] = {
+        ...visit,
+        rating: visit.rating ?? existing.rating,
+        ratedAt: visit.ratedAt ?? existing.ratedAt,
+        summary: visit.summary || existing.summary,
+        narrationExcerpt: visit.narrationExcerpt || existing.narrationExcerpt,
+      };
+    } else if (existing.rating == null && visit.rating != null) {
+      kept[idx] = {
+        ...existing,
+        rating: visit.rating,
+        ratedAt: visit.ratedAt,
+      };
+    }
+  }
+  return kept.sort((a, b) => b.narratedAt - a.narratedAt);
+}
 
 const KEY = {
   poi: (id: string) => `rtag:poi:${id}`,
@@ -15,7 +85,14 @@ const KEY = {
   uiLanguage: 'rtag:uiLanguage',
   narrationLanguage: 'rtag:narrationLanguage',
   narrationFollowsUi: 'rtag:narrationFollowsUi',
+  visits: 'rtag:visits',
+  prefetchBatch: 'rtag:prefetchBatch',
+  prefetchSampleTarget: 'rtag:prefetchSampleTarget',
 };
+
+export const PREFETCH_PLACE_DEFAULT: PrefetchPlaceTarget = 12;
+
+const MAX_VISITS = 200;
 
 export const SPEECH_RATE_MIN = 0.5;
 export const SPEECH_RATE_MAX = 1.5;
@@ -117,7 +194,8 @@ export async function markNarrated(id: string): Promise<void> {
 }
 
 export async function resetTripMemory(): Promise<void> {
-  await AsyncStorage.multiRemove([KEY.narrated, KEY.llmCalls]);
+  // AsyncStorage v3 replaced multiRemove with removeMany.
+  await AsyncStorage.removeMany([KEY.narrated, KEY.llmCalls]);
 }
 
 export async function getLlmCalls(): Promise<number> {
@@ -230,4 +308,127 @@ export async function setStatus(patch: Partial<TripStatus>): Promise<TripStatus>
   const next = { ...current, ...patch };
   await AsyncStorage.setItem(KEY.status, JSON.stringify(next));
   return next;
+}
+
+export async function getVisitHistory(): Promise<VisitRecord[]> {
+  const raw = await AsyncStorage.getItem(KEY.visits);
+  if (!raw) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(raw) as VisitRecord[];
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    const deduped = dedupeVisits(parsed);
+    if (deduped.length !== parsed.length) {
+      await saveVisitHistory(deduped);
+    }
+    return deduped;
+  } catch {
+    return [];
+  }
+}
+
+async function saveVisitHistory(visits: VisitRecord[]): Promise<void> {
+  const clean = dedupeVisits(visits).slice(0, MAX_VISITS);
+  await AsyncStorage.setItem(KEY.visits, JSON.stringify(clean));
+}
+
+export async function recordVisit(
+  input: Omit<VisitRecord, 'id' | 'narratedAt' | 'rating' | 'ratedAt'>,
+): Promise<VisitRecord> {
+  const visits = await getVisitHistory();
+  const existing = visits.find(v => sameVisitPlace(v, input));
+  if (existing) {
+    const updated: VisitRecord = {
+      ...existing,
+      ...input,
+      id: existing.id,
+      narratedAt: Date.now(),
+      rating: existing.rating,
+      ratedAt: existing.ratedAt,
+    };
+    const next = [updated, ...visits.filter(v => v.id !== existing.id)];
+    await saveVisitHistory(next);
+    return updated;
+  }
+  const created: VisitRecord = {
+    ...input,
+    id: `${input.poiId}:${Date.now()}`,
+    narratedAt: Date.now(),
+  };
+  await saveVisitHistory([created, ...visits]);
+  return created;
+}
+
+export async function setVisitRating(
+  visitId: string,
+  rating: VisitRating | null,
+): Promise<VisitRecord[]> {
+  const visits = await getVisitHistory();
+  const next = visits.map(visit => {
+    if (visit.id !== visitId) {
+      return visit;
+    }
+    if (rating == null) {
+      const { rating: _r, ratedAt: _a, ...rest } = visit;
+      return rest;
+    }
+    return { ...visit, rating, ratedAt: Date.now() };
+  });
+  await saveVisitHistory(next);
+  return next;
+}
+
+export async function getPrefetchPlaceTarget(): Promise<PrefetchPlaceTarget> {
+  const raw = await AsyncStorage.getItem(KEY.prefetchSampleTarget);
+  const n = Number(raw);
+  if ((PREFETCH_PLACE_OPTIONS as readonly number[]).includes(n)) {
+    return n as PrefetchPlaceTarget;
+  }
+  return PREFETCH_PLACE_DEFAULT;
+}
+
+export async function savePrefetchPlaceTarget(
+  target: PrefetchPlaceTarget,
+): Promise<void> {
+  await AsyncStorage.setItem(KEY.prefetchSampleTarget, String(target));
+}
+
+/** @deprecated use getPrefetchPlaceTarget */
+export const getPrefetchSampleTarget = getPrefetchPlaceTarget;
+/** @deprecated use savePrefetchPlaceTarget */
+export const savePrefetchSampleTarget = savePrefetchPlaceTarget;
+
+export async function getPrefetchBatch(): Promise<PrefetchBatch | null> {
+  const raw = await AsyncStorage.getItem(KEY.prefetchBatch);
+  if (!raw) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw) as PrefetchBatch & {
+      sampleTarget?: number;
+    };
+    if (parsed.placeTarget == null && parsed.sampleTarget != null) {
+      parsed.placeTarget = parsed.sampleTarget;
+    }
+    if (!Array.isArray(parsed.pois)) {
+      return null;
+    }
+    parsed.pois = parsed.pois.map(poi => ({
+      ...poi,
+      category:
+        poi.category && !/^Q\d+$/i.test(poi.category)
+          ? poi.category
+          : undefined,
+    }));
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export async function savePrefetchBatch(batch: PrefetchBatch): Promise<void> {
+  await AsyncStorage.setItem(KEY.prefetchBatch, JSON.stringify(batch));
 }

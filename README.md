@@ -28,7 +28,8 @@ Code: [`src/services/decision/clef.ts`](src/services/decision/clef.ts), [`src/se
 
 ## Features (current)
 
-- Three tabs: **Drive** (trip + route prefetch), **Around** (what’s nearby), **Settings**
+- Shell: header (tab title + Settings), bottom nav **Around** / **Drive** / **History** with icons; Settings opens from the header
+- Route Prep caches POIs along the corridor for offline/driving use; after download, Drive shows a map + list. Sample count is selectable (5–50).
 - English / Serbian UI; narration language follows UI until overridden in Settings
 - Speech rate slider (0.50×–1.50×), stop / next story
 - Debug location presets (London / Westminster / Belgrade) in Settings

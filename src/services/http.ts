@@ -51,3 +51,26 @@ export async function fetchJsonSilent<T>(
     return null;
   }
 }
+
+/** Hard wall-clock timeout — React Native abort can stall without rejecting. */
+export function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  label = 'operation',
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`timeout:${label}:${timeoutMs}ms`));
+    }, timeoutMs);
+    promise.then(
+      value => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      error => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}

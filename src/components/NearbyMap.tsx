@@ -99,19 +99,16 @@ export function NearbyMap({
 
 const styles = StyleSheet.create({
   wrap: {
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
     backgroundColor: colors.card,
   },
   placeholder: {
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderRadius: radius.lg,
     backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     padding: space.lg,
+    minHeight: 160,
   },
 });

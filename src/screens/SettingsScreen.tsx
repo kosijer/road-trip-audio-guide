@@ -104,10 +104,6 @@ export function SettingsScreen({
     <ScrollView
       contentContainerStyle={sharedStyles.content}
       keyboardShouldPersistTaps="handled">
-      <View style={sharedStyles.headerBlock}>
-        <Text style={sharedStyles.screenTitle}>{t('settingsTitle')}</Text>
-      </View>
-
       <View style={sharedStyles.sectionCard}>
         <Text style={sharedStyles.sectionCardTitle}>{t('uiLanguage')}</Text>
         <View style={sharedStyles.rowBtns}>

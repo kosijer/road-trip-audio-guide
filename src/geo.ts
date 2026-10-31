@@ -76,3 +76,50 @@ export function sampleAlongRoute(points: GeoPoint[], everyKm: number): GeoPoint[
   }
   return samples;
 }
+
+/** Evenly spaced samples along the polyline (includes start + end). */
+export function sampleAlongRouteByCount(
+  points: GeoPoint[],
+  count: number,
+): GeoPoint[] {
+  if (points.length === 0 || count <= 0) {
+    return [];
+  }
+  if (count === 1 || points.length === 1) {
+    return [points[0]];
+  }
+
+  const segLens: number[] = [0];
+  let total = 0;
+  for (let i = 1; i < points.length; i++) {
+    total += haversineM(points[i - 1], points[i]);
+    segLens.push(total);
+  }
+  if (total <= 0) {
+    return [points[0]];
+  }
+
+  const targets = Math.max(2, Math.round(count));
+  const samples: GeoPoint[] = [];
+  for (let s = 0; s < targets; s++) {
+    const target = (total * s) / (targets - 1);
+    let idx = 1;
+    while (idx < segLens.length && segLens[idx] < target) {
+      idx += 1;
+    }
+    if (idx >= points.length) {
+      samples.push(points[points.length - 1]);
+      continue;
+    }
+    const prevLen = segLens[idx - 1];
+    const seg = segLens[idx] - prevLen;
+    const t = seg > 0 ? (target - prevLen) / seg : 0;
+    const a = points[idx - 1];
+    const b = points[idx];
+    samples.push({
+      latitude: a.latitude + (b.latitude - a.latitude) * t,
+      longitude: a.longitude + (b.longitude - a.longitude) * t,
+    });
+  }
+  return samples;
+}

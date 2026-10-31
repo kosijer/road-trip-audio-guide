@@ -61,3 +61,18 @@ export async function discoverPois(
   await savePois(ranked);
   return ranked;
 }
+
+/**
+ * Faster corridor discovery for Route Prep: Wikipedia (+ Wikidata) only.
+ * Overpass is often rate-limited / slow and can stall a whole sample.
+ */
+export async function discoverPoisForPrefetch(
+  center: GeoPoint,
+  radiusM: number,
+): Promise<Poi[]> {
+  const wiki = await searchWikipedia(center, radiusM);
+  const wikiEnriched = await enrichWithWikidata(wiki);
+  const ranked = rankPois(dedupe(wikiEnriched));
+  await savePois(ranked);
+  return ranked;
+}

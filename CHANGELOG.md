@@ -26,10 +26,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 - Gemini default model is `gemini-flash-lite-latest` with retries across lite fallbacks (`GEMINI_MODEL` in `.env`); avoids frequent 503/timeouts on `gemini-flash-latest`.
 - Docs/README no longer frame the app as Crete-trip-only; general road/city companion.
-- App UI restructured into Drive / Around / Settings tabs; speech rate is a continuous slider (0.50–1.50); English/Serbian UI (default English) with separate narration language that follows UI until overridden.
+- App UI restructured into Around (default) / Drive / History / Settings tabs; speech rate is a continuous slider (0.50–1.50); English/Serbian UI (default English) with separate narration language that follows UI until overridden.
 - Visual polish: clearer type scale, 48dp+ touch targets, Material-ish bottom nav indicator, grouped Settings cards, denser diagnostics, Android ripples — same flows/behavior.
 - Around tab map (`react-native-maps` + existing `GOOGLE_MAPS_API_KEY`): shows you, search radius, and last narrated POI marker(s). Requires Maps SDK for Android enabled on the same Google Cloud key (free tier / personal use).
 
+### Added
+- History tab: local visit list from narrated places with 1–5 star ratings (AsyncStorage) as a substrate for a future taste profile.
+- App header with tab title + Settings affordance; bottom nav is Around / Drive / History with icons (Settings no longer a tab).
+- Route Prep preview: map pins + accordion place list; selectable **places to keep** (5 / 12 / 25 / 50). Progress text is “Scanning route”, then top-N pick.
+- History accordion rows with rating in the header; visit dedupe by `poiId` or same title within ~200 m (cleans existing duplicates on load).
+
 ### Fixed
+- Route Prep hanging mid-download (e.g. 4/12) with button stuck on “Downloading…”: per-sample hard timeout, Wikipedia-only corridor fetch (skip flaky Overpass for prefetch), persisted progress, dedicated prefetch busy state.
+- Start Trip crash (`TypeError: undefined is not a function`): AsyncStorage v3 removed `multiRemove` — `resetTripMemory` now uses `removeMany`. Foreground keep-alive is also best-effort so a FGS failure cannot abort the trip.
 - Weather caveats: Open-Meteo aligned to the current hour (not midnight), higher rain thresholds, real GPS for weather even with debug POI location, Gemini instructed not to invent rain.
 - Gemini abort/timeouts during narration under free-tier load.
