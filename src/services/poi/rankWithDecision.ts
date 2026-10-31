@@ -15,6 +15,15 @@
  */
 
 import { config } from '../../config';
+import {
+  getOrClassifyPoi,
+  getPreferenceProfile,
+  getSessionState,
+  isNightlifeViable,
+  buildExposureContext,
+  lastExposureForPoi,
+  rankCandidates as rankByPreferences,
+} from '../../preferences';
 import type { Poi } from '../../types';
 import {
   asChoiceAnswer,
@@ -173,13 +182,59 @@ export async function rankCandidatesForNarration(
   }
 }
 
-/** Convenience: rank then take driving/walking selection size. */
+/** Convenience: heuristic/Clef shortlist, then preference-aware re-rank. */
 export async function selectPoisForNarration(
   pois: Poi[],
   mode: 'driving' | 'walking',
 ): Promise<Poi[]> {
   const ranked = await rankCandidatesForNarration(pois, mode);
-  return ranked.slice(0, selectionLimit(mode));
+  const limit = selectionLimit(mode);
+  if (ranked.length <= 1) {
+    return ranked.slice(0, limit);
+  }
+
+  try {
+    const [profile, session] = await Promise.all([
+      getPreferenceProfile(),
+      getSessionState(),
+    ]);
+    const context = buildExposureContext(mode);
+    const prefCandidates = [];
+    for (let index = 0; index < ranked.length; index++) {
+      const poi = ranked[index];
+      const classification = await getOrClassifyPoi(poi);
+      if (
+        classification.primaryCategory === 'nightlife_social' &&
+        !isNightlifeViable(context.daypart)
+      ) {
+        continue;
+      }
+      const prior = await lastExposureForPoi(poi.id);
+      // Positional base preserves heuristic/Clef order; prefs apply a bounded nudge.
+      prefCandidates.push({
+        id: poi.id,
+        title: poi.title,
+        baseInterest: ranked.length - index,
+        categories: classification.categories,
+        primaryCategory: classification.primaryCategory,
+        lastExposedAt: prior?.suggestedAt,
+      });
+    }
+    if (prefCandidates.length === 0) {
+      return ranked.slice(0, limit);
+    }
+    const result = rankByPreferences(prefCandidates, profile, session, {
+      limit,
+    });
+    const byId = new Map(ranked.map(p => [p.id, p]));
+    const ordered = result.selected
+      .map(c => byId.get(c.id))
+      .filter((p): p is Poi => p != null);
+    return ordered.length > 0 ? ordered : ranked.slice(0, limit);
+  } catch (error) {
+    console.warn('preference ranking failed, using heuristic', error);
+    return ranked.slice(0, limit);
+  }
 }
 
 /** Exposed for tests / debugging — not used by production callers. */

@@ -63,6 +63,16 @@ function AppScreen() {
         getLanguageSettings(),
         getRate(),
       ]);
+      try {
+        const {
+          ensureStatsInitialized,
+          migrateLegacyRatingsIfNeeded,
+        } = await import('./src/preferences');
+        await ensureStatsInitialized();
+        await migrateLegacyRatingsIfNeeded();
+      } catch (error) {
+        console.warn('preferences bootstrap failed', error);
+      }
       hydrateI18n(languages);
       await applyNarrationLanguage(languages.narrationLanguage);
       setStatus(nextStatus);

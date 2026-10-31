@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { LastStoryCard } from '../components/LastStoryCard';
+import { MoodChips } from '../components/MoodChips';
 import { NearbyMap } from '../components/NearbyMap';
 import { useI18n } from '../hooks/useI18n';
 import { config } from '../config';
+import {
+  getSessionState,
+  setSessionMood,
+  type SessionMood,
+} from '../preferences';
 import { getCurrentLocation } from '../services/location';
 import { walkingNow } from '../services/tripEngine';
 import { colors, sharedStyles } from '../theme';
@@ -30,6 +36,11 @@ export function AroundScreen({
   const [mapCenter, setMapCenter] = useState<GeoPoint | null>(
     status.lastLocation ?? null,
   );
+  const [mood, setMood] = useState<SessionMood>(null);
+
+  useEffect(() => {
+    void getSessionState().then(s => setMood(s.mood));
+  }, []);
 
   useEffect(() => {
     if (status.lastLocation) {
@@ -79,6 +90,14 @@ export function AroundScreen({
         />
       </View>
 
+      <MoodChips
+        mood={mood}
+        onChange={next => {
+          setMood(next);
+          void setSessionMood(next);
+        }}
+      />
+
       <Pressable
         accessibilityRole="button"
         android_ripple={{ color: colors.ripple }}
@@ -97,6 +116,7 @@ export function AroundScreen({
       <LastStoryCard
         title={status.lastPoiTitle}
         narration={status.lastNarration}
+        exposureId={status.lastExposureId}
         busy={busy}
         onNext={onNext}
       />

@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Personal preferences (spec): taxonomy + mapping classification, Beta learning with decay, bounded Thompson ranking, mute/mood controls, 👍/👎 taste feedback separate from narration stars, Settings taste profile, legacy History rating migration (cautious; non-viable so it does not pollute stats). Reuses AsyncStorage visit history rather than a new SQLite stack.
+- Plan tab (Route Prep); Drive simplified to Start Trip + map + next place + Maps directions; configurable trip speed threshold with displacement gate for walk/bike.
+
 ### Changed
 - App renamed to **Along**; launcher icon is a coral arrow that hints at the letter A on a deep navy field.
 - Color system refreshed: navy night road + coral accent + teal highlights (replacing the flat brown palette).

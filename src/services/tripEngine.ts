@@ -383,6 +383,7 @@ async function narrateOnce(
   }
   // One history entry per story — primary place only (avoids near-duplicate rows).
   const primary = selected[0];
+  let lastExposureId: string | undefined;
   if (primary) {
     await recordVisit({
       poiId: primary.id,
@@ -395,6 +396,26 @@ async function narrateOnce(
       mode,
       narrationExcerpt: text.slice(0, 280),
     });
+    try {
+      const {
+        buildExposureContext,
+        getOrClassifyPoi,
+        recordExposure,
+      } = await import('../preferences');
+      const classification = await getOrClassifyPoi(primary);
+      const weatherOk =
+        extras.length > 0 ? false : null;
+      const exposure = await recordExposure({
+        poiId: primary.id,
+        categories: classification.categories,
+        primaryCategory: classification.primaryCategory,
+        context: buildExposureContext(mode, { weatherOk }),
+        viable: true,
+      });
+      lastExposureId = exposure.id;
+    } catch (error) {
+      console.warn('exposure record failed', error);
+    }
   }
   const spoken = await speak(text);
   const llmCalls = await getLlmCalls();
@@ -404,6 +425,7 @@ async function narrateOnce(
     lastNarration: text,
     lastPoiTitle: focus?.title,
     lastPoiIds: selected.map(poi => poi.id),
+    lastExposureId,
     lastPoiMarkers: focus
       ? [
           {
