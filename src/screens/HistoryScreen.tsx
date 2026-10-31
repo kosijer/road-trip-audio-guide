@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Accordion } from '../components/Accordion';
 import { StarRating } from '../components/StarRating';
 import { useI18n } from '../hooks/useI18n';
 import { humanCategory } from '../services/routePrefetch';
-import { getVisitHistory, setVisitRating } from '../services/store';
+import {
+  clearVisitHistory,
+  getVisitHistory,
+  setVisitRating,
+} from '../services/store';
 import { colors, sharedStyles, space, type } from '../theme';
 import type { VisitRating, VisitRecord } from '../types';
 
@@ -47,6 +51,23 @@ export function HistoryScreen() {
     setVisits(await setVisitRating(visitId, nextRating));
   }, []);
 
+  const onClear = useCallback(() => {
+    Alert.alert(t('historyClear'), t('historyClearConfirm'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('historyClear'),
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            await clearVisitHistory();
+            setVisits([]);
+            setExpandedId(null);
+          })();
+        },
+      },
+    ]);
+  }, [t]);
+
   return (
     <ScrollView contentContainerStyle={sharedStyles.content}>
       {loading ? null : visits.length === 0 ? (
@@ -54,7 +75,15 @@ export function HistoryScreen() {
           <Text style={styles.empty}>{t('historyEmpty')}</Text>
         </View>
       ) : (
-        visits.map(visit => {
+        <>
+          <Pressable
+            accessibilityRole="button"
+            android_ripple={{ color: colors.ripple }}
+            style={styles.clearRow}
+            onPress={onClear}>
+            <Text style={styles.clearText}>{t('historyClear')}</Text>
+          </Pressable>
+          {visits.map(visit => {
           const open = expandedId === visit.id;
           const category = humanCategory(visit.category);
           const subtitle = [
@@ -98,7 +127,8 @@ export function HistoryScreen() {
               />
             </Accordion>
           );
-        })
+        })}
+        </>
       )}
     </ScrollView>
   );
@@ -108,6 +138,16 @@ const styles = StyleSheet.create({
   empty: {
     ...type.body,
     color: colors.muted,
+  },
+  clearRow: {
+    alignSelf: 'flex-end',
+    paddingVertical: space.xs,
+    paddingHorizontal: space.sm,
+  },
+  clearText: {
+    ...type.caption,
+    color: colors.accent,
+    fontWeight: '700',
   },
   summary: {
     ...type.body,

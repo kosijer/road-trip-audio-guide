@@ -432,3 +432,41 @@ export async function getPrefetchBatch(): Promise<PrefetchBatch | null> {
 export async function savePrefetchBatch(batch: PrefetchBatch): Promise<void> {
   await AsyncStorage.setItem(KEY.prefetchBatch, JSON.stringify(batch));
 }
+
+export async function clearPrefetchBatch(): Promise<void> {
+  await AsyncStorage.removeItem(KEY.prefetchBatch);
+}
+
+export async function clearVisitHistory(): Promise<void> {
+  await AsyncStorage.removeItem(KEY.visits);
+}
+
+/** Progress / ranking strings that should not survive app relaunch. */
+export function isTransientStatusMessage(message: string): boolean {
+  const m = message.trim().toLowerCase();
+  if (!m) {
+    return false;
+  }
+  return (
+    m.includes('scanning route') ||
+    m.includes('picking the top') ||
+    m.includes('downloading') ||
+    m.includes('skeniram rutu') ||
+    m.includes('biram najboljih') ||
+    m.includes('preuzimam') ||
+    m.includes('looking for interesting') ||
+    m.includes('looking for the next') ||
+    m.includes('tražim')
+  );
+}
+
+export async function sanitizeStatusOnLaunch(): Promise<TripStatus> {
+  const current = await getStatus();
+  if (!isTransientStatusMessage(current.message)) {
+    return current;
+  }
+  const message = current.tripActive
+    ? current.lastPoiTitle || ''
+    : '';
+  return setStatus({ message });
+}

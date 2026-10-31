@@ -34,6 +34,6 @@ describe('i18n', () => {
     expect(getNarrationFollowsUi()).toBe(false);
     expect(getUiLanguage()).toBe('en');
     expect(getNarrationLanguage()).toBe('sr');
-    expect(t('walking')).toBe("What's around me?");
+    expect(t('walking')).toBe('Around me');
   });
 });

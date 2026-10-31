@@ -1,5 +1,4 @@
-import { StyleSheet, View } from 'react-native';
-import { colors } from '../theme';
+import { StyleSheet, Text, View } from 'react-native';
 
 type IconProps = {
   color: string;
@@ -94,43 +93,67 @@ export function HistoryIcon({ color, size = 22 }: IconProps) {
 }
 
 export function SettingsIcon({ color, size = 22 }: IconProps) {
-  const hub = size * 0.28;
+  // Unicode gear reads clearly as Settings across Android fonts.
   return (
     <View style={[styles.box, { width: size, height: size }]}>
-      {[0, 60, 120].map(deg => (
-        <View
-          key={deg}
-          style={{
-            position: 'absolute',
-            width: size * 0.22,
-            height: size * 0.72,
-            borderRadius: 3,
-            backgroundColor: color,
-            transform: [{ rotate: `${deg}deg` }],
-            opacity: 0.95,
-          }}
-        />
-      ))}
+      <Text
+        style={{
+          fontSize: size,
+          lineHeight: size + 2,
+          color,
+          fontWeight: '600',
+        }}>
+        ⚙
+      </Text>
+    </View>
+  );
+}
+
+export function StopIcon({ color, size = 22 }: IconProps) {
+  const box = size * 0.55;
+  return (
+    <View style={[styles.box, { width: size, height: size }]}>
       <View
         style={{
-          width: hub + 6,
-          height: hub + 6,
-          borderRadius: hub,
-          backgroundColor: colors.card,
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1,
-        }}>
-        <View
-          style={{
-            width: hub,
-            height: hub,
-            borderRadius: hub,
-            borderWidth: 2,
-            borderColor: color,
-          }}
-        />
-      </View>
+          width: box,
+          height: box,
+          borderRadius: 3,
+          backgroundColor: color,
+        }}
+      />
+    </View>
+  );
+}
+
+export function NextIcon({ color, size = 22 }: IconProps) {
+  const bar = size * 0.12;
+  const tri = size * 0.42;
+  return (
+    <View
+      style={[
+        styles.box,
+        { width: size, height: size, flexDirection: 'row', gap: 2 },
+      ]}>
+      <View
+        style={{
+          width: 0,
+          height: 0,
+          borderTopWidth: tri / 2,
+          borderBottomWidth: tri / 2,
+          borderLeftWidth: tri * 0.85,
+          borderTopColor: 'transparent',
+          borderBottomColor: 'transparent',
+          borderLeftColor: color,
+        }}
+      />
+      <View
+        style={{
+          width: bar,
+          height: tri,
+          borderRadius: 1,
+          backgroundColor: color,
+        }}
+      />
     </View>
   );
 }

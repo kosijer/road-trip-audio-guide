@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { LastStoryCard } from '../components/LastStoryCard';
 import { NearbyMap } from '../components/NearbyMap';
-import { PlaybackRow } from '../components/PlaybackRow';
 import { useI18n } from '../hooks/useI18n';
 import { config } from '../config';
 import { getCurrentLocation } from '../services/location';
@@ -16,8 +15,6 @@ type Props = {
   speaking: boolean;
   busy: boolean;
   setBusy: (busy: boolean) => void;
-  onStopSpeech: () => void;
-  onNext: () => void;
 };
 
 export function AroundScreen({
@@ -26,8 +23,6 @@ export function AroundScreen({
   speaking,
   busy,
   setBusy,
-  onStopSpeech,
-  onNext,
 }: Props) {
   const { t } = useI18n();
   const [mapCenter, setMapCenter] = useState<GeoPoint | null>(
@@ -47,7 +42,7 @@ export function AroundScreen({
         }
       })
       .catch(() => {
-        // Keep placeholder until the user taps "what's around".
+        // Keep placeholder until the user taps around.
       });
     return () => {
       cancelled = true;
@@ -69,7 +64,10 @@ export function AroundScreen({
 
   return (
     <ScrollView
-      contentContainerStyle={sharedStyles.content}
+      contentContainerStyle={[
+        sharedStyles.content,
+        (speaking || busy) && sharedStyles.contentWithOverlay,
+      ]}
       keyboardShouldPersistTaps="handled">
       <View style={sharedStyles.mapCard}>
         <NearbyMap
@@ -94,16 +92,11 @@ export function AroundScreen({
         </Text>
       </Pressable>
 
-      <PlaybackRow
-        speaking={speaking}
-        busy={busy}
-        onStop={onStopSpeech}
-        onNext={onNext}
-      />
-
-      <View style={sharedStyles.card}>
-        <Text style={sharedStyles.message}>{status.message || '—'}</Text>
-      </View>
+      {status.message.trim() ? (
+        <View style={sharedStyles.card}>
+          <Text style={sharedStyles.message}>{status.message}</Text>
+        </View>
+      ) : null}
 
       <LastStoryCard
         title={status.lastPoiTitle}

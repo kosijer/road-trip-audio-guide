@@ -15,10 +15,12 @@ import {
   setLocationOverride,
   type FakeLocationId,
 } from './src/services/location';
+import { PlaybackOverlay } from './src/components/PlaybackOverlay';
 import {
   emptyStatus,
   getLanguageSettings,
   getStatus,
+  sanitizeStatusOnLaunch,
 } from './src/services/store';
 import { narrateNext, STATUS_EVENT } from './src/services/tripEngine';
 import {
@@ -55,7 +57,7 @@ function AppScreen() {
   useEffect(() => {
     void (async () => {
       const [nextStatus, languages, rate] = await Promise.all([
-        getStatus(),
+        sanitizeStatusOnLaunch(),
         getLanguageSettings(),
         getRate(),
       ]);
@@ -163,8 +165,6 @@ function AppScreen() {
             speaking={speaking}
             busy={busy}
             setBusy={setBusy}
-            onStopSpeech={onStopSpeech}
-            onNext={onNext}
           />
         ) : null}
         {!settingsOpen && tab === 'drive' ? (
@@ -174,11 +174,19 @@ function AppScreen() {
             speaking={speaking}
             busy={busy}
             setBusy={setBusy}
-            onStopSpeech={onStopSpeech}
-            onNext={onNext}
           />
         ) : null}
         {!settingsOpen && tab === 'history' ? <HistoryScreen /> : null}
+        {!settingsOpen && (tab === 'around' || tab === 'drive') ? (
+          <PlaybackOverlay
+            visible={speaking || busy}
+            speaking={speaking}
+            busy={busy}
+            bottomOffset={0}
+            onStop={onStopSpeech}
+            onNext={onNext}
+          />
+        ) : null}
       </View>
       <BottomTabs
         active={tab}

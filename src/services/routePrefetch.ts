@@ -41,15 +41,10 @@ export async function runPrefetch(
   destination: string,
   onProgress?: (message: string) => void,
 ): Promise<{ count: number; batch: PrefetchBatch }> {
-  const emit = async (message: string) => {
-    onProgress?.(message);
-    await setStatus({ message });
-  };
-
   const placeTarget = await getPrefetchPlaceTarget();
   const searchPoints = searchPointsForPlaceTarget(placeTarget);
 
-  await emit(t('prefetching'));
+  onProgress?.(t('prefetching'));
   const samples = await withTimeout(
     fetchRouteSamples(origin.trim(), destination.trim(), searchPoints),
     30_000,
@@ -63,7 +58,8 @@ export async function runPrefetch(
   let failures = 0;
 
   for (let i = 0; i < samples.length; i++) {
-    await emit(
+    // Progress is UI-only via onProgress; persist only non-stuck final messages.
+    onProgress?.(
       t('prefetchProgress', { current: i + 1, total: samples.length }),
     );
     try {
@@ -81,7 +77,7 @@ export async function runPrefetch(
     }
   }
 
-  await emit(t('prefetchRanking', { count: placeTarget }));
+  onProgress?.(t('prefetchRanking', { count: placeTarget }));
   const ranked = rankPois([...byId.values()]).slice(0, placeTarget);
   await savePois(ranked);
 

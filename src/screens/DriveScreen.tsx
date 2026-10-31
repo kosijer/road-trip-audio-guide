@@ -9,20 +9,20 @@ import {
 } from 'react-native';
 import { Accordion } from '../components/Accordion';
 import { CorridorMap } from '../components/CorridorMap';
-import { LastStoryCard } from '../components/LastStoryCard';
-import { PlaybackRow } from '../components/PlaybackRow';
+import { SettingsIcon } from '../components/Icons';
 import { StatusRow } from '../components/StatusRow';
 import { useI18n } from '../hooks/useI18n';
 import { getCurrentLocation } from '../services/location';
 import { runPrefetch } from '../services/routePrefetch';
 import {
+  clearPrefetchBatch,
   getPrefetchBatch,
   getPrefetchPlaceTarget,
   getStatus,
   savePrefetchPlaceTarget,
 } from '../services/store';
 import { endTrip, startTrip } from '../services/tripEngine';
-import { colors, sharedStyles, type } from '../theme';
+import { colors, radius, sharedStyles, space, touchMin, type } from '../theme';
 import {
   PREFETCH_PLACE_OPTIONS,
   type PrefetchBatch,
@@ -36,8 +36,6 @@ type Props = {
   speaking: boolean;
   busy: boolean;
   setBusy: (busy: boolean) => void;
-  onStopSpeech: () => void;
-  onNext: () => void;
 };
 
 export function DriveScreen({
@@ -46,8 +44,6 @@ export function DriveScreen({
   speaking,
   busy,
   setBusy,
-  onStopSpeech,
-  onNext,
 }: Props) {
   const { t } = useI18n();
   const [origin, setOrigin] = useState('');
@@ -56,6 +52,7 @@ export function DriveScreen({
   const [placeTarget, setPlaceTarget] = useState<PrefetchPlaceTarget>(12);
   const [batch, setBatch] = useState<PrefetchBatch | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showPlaceSettings, setShowPlaceSettings] = useState(false);
 
   const blocked = busy || prefetching;
 
@@ -88,6 +85,7 @@ export function DriveScreen({
   const onPlaceTarget = useCallback(async (next: PrefetchPlaceTarget) => {
     setPlaceTarget(next);
     await savePrefetchPlaceTarget(next);
+    setShowPlaceSettings(false);
   }, []);
 
   const onPrefetch = useCallback(async () => {
@@ -125,6 +123,17 @@ export function DriveScreen({
     }
   }, [destination, origin, prefetching, setStatus, t]);
 
+  const onClearRoute = useCallback(async () => {
+    await clearPrefetchBatch();
+    setBatch(null);
+    setExpandedId(null);
+    setStatus(prev => ({
+      ...prev,
+      prefetchCount: 0,
+      message: '',
+    }));
+  }, [setStatus]);
+
   const prefetchLabel = prefetching
     ? status.message.trim() || t('prefetching')
     : t('prefetch');
@@ -142,7 +151,10 @@ export function DriveScreen({
 
   return (
     <ScrollView
-      contentContainerStyle={sharedStyles.content}
+      contentContainerStyle={[
+        sharedStyles.content,
+        (speaking || busy) && sharedStyles.contentWithOverlay,
+      ]}
       keyboardShouldPersistTaps="handled">
       <Pressable
         accessibilityRole="button"
@@ -159,52 +171,69 @@ export function DriveScreen({
         </Text>
       </Pressable>
 
-      <PlaybackRow
-        speaking={speaking}
-        busy={blocked}
-        onStop={onStopSpeech}
-        onNext={onNext}
-      />
-
       <View style={sharedStyles.card}>
         <StatusRow
           label={t('statusTrip')}
           value={status.tripActive ? t('tripActive') : t('tripIdle')}
         />
-        <View style={sharedStyles.divider} />
-        <Text style={sharedStyles.message}>{status.message || '—'}</Text>
+        {status.message.trim() ? (
+          <>
+            <View style={sharedStyles.divider} />
+            <Text style={sharedStyles.message}>{status.message}</Text>
+          </>
+        ) : null}
       </View>
 
       <View style={sharedStyles.sectionCard}>
-        <Text style={sharedStyles.sectionCardTitle}>{t('routePrep')}</Text>
-        <Text style={sharedStyles.hint}>{t('prefetchHint')}</Text>
-        <Text style={sharedStyles.hint}>{t('prefetchPlacesHint')}</Text>
-        <Text style={styles.samplesLabel}>{t('prefetchPlaces')}</Text>
-        <View style={sharedStyles.rowBtns}>
-          {PREFETCH_PLACE_OPTIONS.map(option => (
-            <Pressable
-              key={option}
-              accessibilityRole="button"
-              accessibilityState={{ selected: placeTarget === option }}
-              android_ripple={{ color: colors.ripple }}
-              style={[
-                sharedStyles.chip,
-                placeTarget === option && sharedStyles.chipSelected,
-              ]}
-              disabled={prefetching}
-              onPress={() => {
-                void onPlaceTarget(option);
-              }}>
-              <Text
-                style={[
-                  sharedStyles.chipText,
-                  placeTarget === option && sharedStyles.chipTextSelected,
-                ]}>
-                {option}
-              </Text>
-            </Pressable>
-          ))}
+        <View style={styles.routeHeader}>
+          <Text style={[sharedStyles.sectionCardTitle, styles.routeTitle]}>
+            {t('routePrep')}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('prefetchPlaces')}
+            android_ripple={{ color: colors.ripple, borderless: true }}
+            style={styles.gearBtn}
+            onPress={() => setShowPlaceSettings(v => !v)}
+            hitSlop={8}>
+            <SettingsIcon
+              color={showPlaceSettings ? colors.accent : colors.muted}
+              size={18}
+            />
+          </Pressable>
         </View>
+        <Text style={sharedStyles.hint}>{t('prefetchHint')}</Text>
+        {showPlaceSettings ? (
+          <View style={styles.placeSettings}>
+            <Text style={styles.samplesLabel}>{t('prefetchPlaces')}</Text>
+            <Text style={sharedStyles.hint}>{t('prefetchPlacesHint')}</Text>
+            <View style={sharedStyles.rowBtns}>
+              {PREFETCH_PLACE_OPTIONS.map(option => (
+                <Pressable
+                  key={option}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: placeTarget === option }}
+                  android_ripple={{ color: colors.ripple }}
+                  style={[
+                    sharedStyles.chip,
+                    placeTarget === option && sharedStyles.chipSelected,
+                  ]}
+                  disabled={prefetching}
+                  onPress={() => {
+                    void onPlaceTarget(option);
+                  }}>
+                  <Text
+                    style={[
+                      sharedStyles.chipText,
+                      placeTarget === option && sharedStyles.chipTextSelected,
+                    ]}>
+                    {option}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        ) : null}
         <TextInput
           value={origin}
           onChangeText={setOrigin}
@@ -233,51 +262,92 @@ export function DriveScreen({
         </Pressable>
       </View>
 
-      <View style={sharedStyles.sectionCard}>
-        <Text style={sharedStyles.sectionCardTitle}>{t('prefetchPreview')}</Text>
-        {batch ? (
+      {batch ? (
+        <View style={sharedStyles.sectionCard}>
+          <View style={styles.routeHeader}>
+            <Text style={[sharedStyles.sectionCardTitle, styles.routeTitle]}>
+              {t('prefetchPreview')}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('prefetchClear')}
+              android_ripple={{ color: colors.ripple }}
+              style={styles.clearBtn}
+              onPress={() => {
+                void onClearRoute();
+              }}>
+              <Text style={styles.clearText}>{t('prefetchClear')}</Text>
+            </Pressable>
+          </View>
           <Text style={sharedStyles.hint}>
             {batch.origin} → {batch.destination} ·{' '}
             {t('prefetchListTitle', { count: batch.pois.length })}
           </Text>
-        ) : (
-          <Text style={sharedStyles.hint}>{t('prefetchEmptyList')}</Text>
-        )}
-        <View style={sharedStyles.mapCard}>
-          <CorridorMap markers={markers} height={210} />
+          <View style={sharedStyles.mapCard}>
+            <CorridorMap markers={markers} height={210} />
+          </View>
+          {batch.pois.map(poi => {
+            const open = expandedId === poi.id;
+            return (
+              <Accordion
+                key={poi.id}
+                title={poi.title}
+                subtitle={poi.category}
+                open={open}
+                onToggle={() =>
+                  setExpandedId(prev => (prev === poi.id ? null : poi.id))
+                }>
+                {poi.summary ? (
+                  <Text style={styles.poiSummary}>{poi.summary}</Text>
+                ) : null}
+              </Accordion>
+            );
+          })}
         </View>
-        {(batch?.pois ?? []).map(poi => {
-          const open = expandedId === poi.id;
-          return (
-            <Accordion
-              key={poi.id}
-              title={poi.title}
-              subtitle={poi.category}
-              open={open}
-              onToggle={() =>
-                setExpandedId(prev => (prev === poi.id ? null : poi.id))
-              }>
-              {poi.summary ? (
-                <Text style={styles.poiSummary}>{poi.summary}</Text>
-              ) : null}
-            </Accordion>
-          );
-        })}
-      </View>
-
-      <LastStoryCard
-        title={status.lastPoiTitle}
-        narration={status.lastNarration}
-      />
+      ) : null}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  routeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+  },
+  routeTitle: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  gearBtn: {
+    width: touchMin - 4,
+    height: touchMin - 4,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+  },
+  placeSettings: {
+    gap: space.sm,
+    padding: space.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
   samplesLabel: {
     ...type.caption,
     color: colors.muted,
     fontWeight: '600',
+  },
+  clearBtn: {
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
+  },
+  clearText: {
+    ...type.caption,
+    color: colors.accent,
+    fontWeight: '700',
   },
   poiSummary: {
     ...type.body,

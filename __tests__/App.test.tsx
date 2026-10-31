@@ -28,7 +28,7 @@ test('renders English Around tab by default', async () => {
       });
     });
     const text = JSON.stringify(tree!.toJSON());
-    if (text.includes("What's around me?")) {
+    if (text.includes('Around me')) {
       expect(text).toContain('Around');
       expect(text).toContain('Drive');
       expect(text).toContain('History');
