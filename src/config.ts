@@ -36,6 +36,8 @@ export const config = {
   drivingPoiRadiusM: num(DRIVING_POI_RADIUS_M, 5000),
   walkingPoiRadiusM: num(WALKING_POI_RADIUS_M, 800),
   maxLlmCallsPerTrip: num(MAX_LLM_CALLS_PER_TRIP, 30),
+  /** Skip re-narrating the same place within this window (Around / Next / Drive). */
+  narratedCooldownMs: 6 * 60 * 60 * 1000,
   locationTickMs: 15_000,
   sustainedSpeedSamples: 3,
   corridorCellDeg: 0.045,

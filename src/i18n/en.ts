@@ -5,8 +5,20 @@ export const en: Record<StringKey, string> = {
   subtitle: 'Stories along the way',
   tabDrive: 'Drive',
   tabAround: 'Around',
+  tabPlan: 'Plan',
   tabHistory: 'History',
   tabSettings: 'Settings',
+  planHint:
+    'Plan A → B and prefetch interesting places along the corridor while you have Wi‑Fi.',
+  driveNextUp: 'Next up',
+  driveDirections: 'Directions in Maps',
+  driveDistance: 'About {km} km away',
+  driveNoSuggestion:
+    'No nearby suggestion yet. Use Plan to prefetch a route, or start the trip to discover places.',
+  speedThreshold: 'Trip speed threshold',
+  speedThresholdValue: '{kmh} km/h',
+  speedThresholdHint:
+    'Start Trip narrates only when you stay at or above this speed. Walk ~3–5, bike ~8–12, car ~25. Below 10 km/h we also check that you actually moved.',
   historyTitle: 'History',
   historySubtitle:
     'Places you have heard about. Rate them to shape a future taste profile.',
@@ -70,7 +82,7 @@ export const en: Record<StringKey, string> = {
   statusLlm: 'LLM calls',
   statusPrefetch: 'Route cache',
   prefetchHint:
-    'Optional: download places along your route while you have Wi‑Fi, then start the trip.',
+    'Download places along your route while you have Wi‑Fi, then use Drive to start the trip.',
   debugLocation: 'Debug location',
   debugGps: 'Real GPS',
   debugLondon: 'London',

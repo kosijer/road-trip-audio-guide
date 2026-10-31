@@ -1,8 +1,11 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { colors } from '../theme';
 
 type IconProps = {
   color: string;
   size?: number;
+  /** Background punch-out for gear hub (match parent button fill). */
+  bg?: string;
 };
 
 /** Minimal geometric icons — no extra native deps. */
@@ -64,6 +67,45 @@ export function DriveIcon({ color, size = 22 }: IconProps) {
   );
 }
 
+export function PlanIcon({ color, size = 22 }: IconProps) {
+  const pin = size * 0.22;
+  return (
+    <View style={[styles.box, { width: size, height: size }]}>
+      <View
+        style={{
+          position: 'absolute',
+          width: size * 0.62,
+          height: 2,
+          backgroundColor: color,
+          transform: [{ rotate: '-28deg' }],
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          left: size * 0.08,
+          bottom: size * 0.18,
+          width: pin,
+          height: pin,
+          borderRadius: pin,
+          backgroundColor: color,
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          right: size * 0.1,
+          top: size * 0.14,
+          width: pin,
+          height: pin,
+          borderRadius: pin,
+          backgroundColor: color,
+        }}
+      />
+    </View>
+  );
+}
+
 export function HistoryIcon({ color, size = 22 }: IconProps) {
   const dial = size * 0.78;
   return (
@@ -92,19 +134,49 @@ export function HistoryIcon({ color, size = 22 }: IconProps) {
   );
 }
 
-export function SettingsIcon({ color, size = 22 }: IconProps) {
-  // Unicode gear reads clearly as Settings across Android fonts.
+export function SettingsIcon({
+  color,
+  size = 22,
+  bg = colors.card,
+}: IconProps) {
+  // Drawn gear (Unicode ⚙ often clips on Android Text metrics).
+  const outer = size * 0.92;
+  const toothW = size * 0.2;
+  const toothH = size * 0.72;
+  const hole = size * 0.18;
   return (
-    <View style={[styles.box, { width: size, height: size }]}>
-      <Text
+    <View style={[styles.box, { width: size, height: size, overflow: 'visible' }]}>
+      {[0, 45, 90, 135].map(deg => (
+        <View
+          key={deg}
+          style={{
+            position: 'absolute',
+            width: toothW,
+            height: toothH,
+            borderRadius: toothW,
+            backgroundColor: color,
+            transform: [{ rotate: `${deg}deg` }],
+          }}
+        />
+      ))}
+      <View
         style={{
-          fontSize: size,
-          lineHeight: size + 2,
-          color,
-          fontWeight: '600',
+          width: outer * 0.58,
+          height: outer * 0.58,
+          borderRadius: outer,
+          backgroundColor: color,
+          alignItems: 'center',
+          justifyContent: 'center',
         }}>
-        ⚙
-      </Text>
+        <View
+          style={{
+            width: hole,
+            height: hole,
+            borderRadius: hole,
+            backgroundColor: bg,
+          }}
+        />
+      </View>
     </View>
   );
 }

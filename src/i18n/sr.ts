@@ -5,8 +5,20 @@ export const sr: Record<StringKey, string> = {
   subtitle: 'Priče duž puta',
   tabDrive: 'Vožnja',
   tabAround: 'Okolina',
+  tabPlan: 'Plan',
   tabHistory: 'Istorija',
   tabSettings: 'Podešavanja',
+  planHint:
+    'Isplanirajte A → B i preuzmite zanimljiva mesta duž rute dok imate Wi‑Fi.',
+  driveNextUp: 'Sledeće',
+  driveDirections: 'Navigacija u Maps',
+  driveDistance: 'Oko {km} km udaljeno',
+  driveNoSuggestion:
+    'Još nema predloga. Koristite Plan da preuzmete rutu, ili pokrenite vožnju da otkrijete mesta.',
+  speedThreshold: 'Prag brzine za vožnju',
+  speedThresholdValue: '{kmh} km/h',
+  speedThresholdHint:
+    'Pokreni vožnju priča samo dok ste na ili iznad ove brzine. Peške ~3–5, bicikl ~8–12, auto ~25. Ispod 10 km/h proveravamo i da ste se stvarno pomerili.',
   historyTitle: 'Istorija',
   historySubtitle:
     'Mesta o kojima ste čuli. Ocenite ih — to gradi budući profil ukusa.',
@@ -71,7 +83,7 @@ export const sr: Record<StringKey, string> = {
   statusLlm: 'LLM pozivi',
   statusPrefetch: 'Keš rute',
   prefetchHint:
-    'Opciono: preuzmite mesta duž rute dok imate Wi‑Fi, pa pokrenite vožnju.',
+    'Preuzmite mesta duž rute dok imate Wi‑Fi, pa u Vožnji pokrenite trip.',
   debugLocation: 'Debug lokacija',
   debugGps: 'Pravi GPS',
   debugLondon: 'London',

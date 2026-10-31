@@ -1,5 +1,5 @@
 import Slider from '@react-native-community/slider';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { StatusRow } from '../components/StatusRow';
 import { useI18n, type AppLanguage } from '../hooks/useI18n';
@@ -13,10 +13,16 @@ import {
   type FakeLocationId,
 } from '../services/location';
 import {
+  SPEED_THRESHOLD_DEFAULT_KMH,
+  SPEED_THRESHOLD_MAX_KMH,
+  SPEED_THRESHOLD_MIN_KMH,
+  SPEED_THRESHOLD_STEP_KMH,
   SPEECH_RATE_MAX,
   SPEECH_RATE_MIN,
   SPEECH_RATE_STEP,
+  getSpeedThresholdKmh,
   saveNarrationLanguage,
+  saveSpeedThresholdKmh,
   saveUiLanguage,
 } from '../services/store';
 import {
@@ -45,6 +51,13 @@ export function SettingsScreen({
   onFakeLocation,
 }: Props) {
   const { t, uiLanguage, narrationLanguage, narrationFollowsUi } = useI18n();
+  const [speedThreshold, setSpeedThreshold] = useState(
+    SPEED_THRESHOLD_DEFAULT_KMH,
+  );
+
+  useEffect(() => {
+    void getSpeedThresholdKmh().then(setSpeedThreshold);
+  }, []);
 
   const loc = status.lastLocation
     ? `${status.lastLocation.latitude.toFixed(4)}, ${status.lastLocation.longitude.toFixed(4)} · ${Math.round(status.lastLocation.speedKmh)} km/h`
@@ -99,6 +112,10 @@ export function SettingsScreen({
     },
     [setSpeechRate, status.lastNarration],
   );
+
+  const onSpeedThreshold = useCallback(async (kmh: number) => {
+    setSpeedThreshold(await saveSpeedThresholdKmh(kmh));
+  }, []);
 
   return (
     <ScrollView
@@ -183,6 +200,27 @@ export function SettingsScreen({
           thumbTintColor={colors.text}
           onSlidingComplete={value => {
             void onRateChange(value);
+          }}
+        />
+      </View>
+
+      <View style={sharedStyles.sectionCard}>
+        <Text style={sharedStyles.sectionCardTitle}>{t('speedThreshold')}</Text>
+        <Text style={sharedStyles.hint}>
+          {t('speedThresholdValue', { kmh: Math.round(speedThreshold) })}
+        </Text>
+        <Text style={sharedStyles.hint}>{t('speedThresholdHint')}</Text>
+        <Slider
+          style={{ width: '100%', height: 40, marginVertical: space.xs }}
+          minimumValue={SPEED_THRESHOLD_MIN_KMH}
+          maximumValue={SPEED_THRESHOLD_MAX_KMH}
+          step={SPEED_THRESHOLD_STEP_KMH}
+          value={speedThreshold}
+          minimumTrackTintColor={colors.accent}
+          maximumTrackTintColor={colors.border}
+          thumbTintColor={colors.text}
+          onSlidingComplete={value => {
+            void onSpeedThreshold(value);
           }}
         />
       </View>

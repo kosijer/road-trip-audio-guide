@@ -1,13 +1,15 @@
 import { DeviceEventEmitter } from 'react-native';
 import { config } from '../config';
 import { t } from '../i18n';
-import type { LocationSample, Poi, TripStatus } from '../types';
+import type { GeoPoint, LocationSample, Poi, TripStatus } from '../types';
 import { cellId } from '../geo';
+import { evaluateMoving } from './motion';
 import {
   emptyStatus,
   getLlmCalls,
   getNarratedIds,
   getNarration,
+  getSpeedThresholdKmh,
   getStatus,
   incrementLlmCalls,
   markNarrated,
@@ -69,6 +71,8 @@ function getBackgroundActions(): BackgroundActionsApi | null {
 }
 
 const speedSamples: number[] = [];
+const locationSamples: GeoPoint[] = [];
+let cachedSpeedThresholdKmh = config.drivingSpeedThresholdKmh;
 let tickTimer: ReturnType<typeof setInterval> | null = null;
 let ticking = false;
 let narrateTail: Promise<unknown> = Promise.resolve();
@@ -83,15 +87,24 @@ async function patch(partial: Partial<TripStatus>): Promise<TripStatus> {
   return status;
 }
 
-function isMoving(speedKmh: number): boolean {
-  speedSamples.push(speedKmh);
+function pushMotionSample(location: LocationSample): boolean {
+  speedSamples.push(location.speedKmh);
+  locationSamples.push({
+    latitude: location.latitude,
+    longitude: location.longitude,
+  });
   while (speedSamples.length > config.sustainedSpeedSamples) {
     speedSamples.shift();
   }
-  if (speedSamples.length < config.sustainedSpeedSamples) {
-    return false;
+  while (locationSamples.length > config.sustainedSpeedSamples) {
+    locationSamples.shift();
   }
-  return speedSamples.every(v => v >= config.drivingSpeedThresholdKmh);
+  return evaluateMoving({
+    speedSamples,
+    locations: locationSamples,
+    thresholdKmh: cachedSpeedThresholdKmh,
+    neededSamples: config.sustainedSpeedSamples,
+  });
 }
 
 async function keepAliveTask() {
@@ -137,6 +150,8 @@ export async function startTrip(): Promise<TripStatus> {
   }
   await resetTripMemory();
   speedSamples.length = 0;
+  locationSamples.length = 0;
+  cachedSpeedThresholdKmh = await getSpeedThresholdKmh();
   await patch({
     ...emptyStatus(),
     tripActive: true,
@@ -197,7 +212,7 @@ export async function drivingTick(): Promise<void> {
       await patch({ message: t('locationFailed') });
       return;
     }
-    const moving = isMoving(location.speedKmh);
+    const moving = pushMotionSample(location);
     const currentCell = cellId(location);
     await patch({
       lastLocation: location,
@@ -235,7 +250,8 @@ export async function walkingNow(): Promise<TripStatus> {
     return patch({ message: t('locationFailed') });
   }
   await patch({ lastLocation: location });
-  await maybeNarrate(location, 'walking');
+  // Same as Next: do not re-tell a place heard recently at this stop.
+  await maybeNarrate(location, 'walking', { skipHeard: true });
   return setStatus({});
 }
 
@@ -382,18 +398,24 @@ async function narrateOnce(
   }
   const spoken = await speak(text);
   const llmCalls = await getLlmCalls();
+  // Map shows only the focal place (Gemini may still weave nearby context into the script).
+  const focus = selected[0];
   await patch({
     lastNarration: text,
-    lastPoiTitle: selected[0]?.title,
+    lastPoiTitle: focus?.title,
     lastPoiIds: selected.map(poi => poi.id),
-    lastPoiMarkers: selected.map(poi => ({
-      id: poi.id,
-      title: poi.title,
-      latitude: poi.location.latitude,
-      longitude: poi.location.longitude,
-    })),
+    lastPoiMarkers: focus
+      ? [
+          {
+            id: focus.id,
+            title: focus.title,
+            latitude: focus.location.latitude,
+            longitude: focus.location.longitude,
+          },
+        ]
+      : [],
     llmCalls,
-    message: spoken ? selected[0]?.title ?? t('appName') : t('ttsMissing'),
+    message: spoken ? focus?.title ?? t('appName') : t('ttsMissing'),
   });
 }
 

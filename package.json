@@ -5,6 +5,7 @@
   "scripts": {
     "android": "react-native run-android",
     "ios": "react-native run-ios",
+    "emulator": "emulator -avd Along_API_35_lite -memory 2048 -cores 2 -gpu host -no-snapshot -no-boot-anim -accel on",
     "lint": "eslint .",
     "start": "react-native start",
     "test": "jest",

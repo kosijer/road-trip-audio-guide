@@ -35,9 +35,9 @@ describe('rankWithDecision', () => {
     clef.runClef.mockReset();
   });
 
-  it('uses driving/walking selection sizes', () => {
+  it('uses a single focal place for driving and walking', () => {
     expect(selectionLimit('driving')).toBe(1);
-    expect(selectionLimit('walking')).toBe(3);
+    expect(selectionLimit('walking')).toBe(1);
   });
 
   it('reorders by Clef probabilities', () => {
@@ -113,7 +113,9 @@ describe('rankWithDecision', () => {
 
     const walking = await selectPoisForNarration([shop, museum], 'walking');
     expect(clef.runClef).toHaveBeenCalled();
-    expect(walking.map(p => p.id)).toEqual(['weak', 'strong']);
+    // One focal place; Clef flipped heuristic order so shop (p1) wins.
+    expect(walking).toHaveLength(1);
+    expect(walking[0]?.id).toBe('weak');
   });
 
   it('keeps heuristic order if Clef throws', async () => {

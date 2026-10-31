@@ -8,6 +8,7 @@ import { hydrateI18n } from './src/i18n';
 import { AroundScreen } from './src/screens/AroundScreen';
 import { DriveScreen } from './src/screens/DriveScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
+import { PlanScreen } from './src/screens/PlanScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import {
   FAKE_LOCATIONS,
@@ -16,6 +17,7 @@ import {
   type FakeLocationId,
 } from './src/services/location';
 import { PlaybackOverlay } from './src/components/PlaybackOverlay';
+import { StatusToast } from './src/components/StatusToast';
 import {
   emptyStatus,
   getLanguageSettings,
@@ -134,7 +136,9 @@ function AppScreen() {
       ? t('tabAround')
       : tab === 'drive'
         ? t('tabDrive')
-        : t('tabHistory');
+        : tab === 'plan'
+          ? t('tabPlan')
+          : t('tabHistory');
 
   if (!ready) {
     return <View style={sharedStyles.root} />;
@@ -165,6 +169,7 @@ function AppScreen() {
             speaking={speaking}
             busy={busy}
             setBusy={setBusy}
+            onNext={onNext}
           />
         ) : null}
         {!settingsOpen && tab === 'drive' ? (
@@ -176,10 +181,24 @@ function AppScreen() {
             setBusy={setBusy}
           />
         ) : null}
+        {!settingsOpen && tab === 'plan' ? (
+          <PlanScreen status={status} setStatus={setStatus} busy={busy} />
+        ) : null}
         {!settingsOpen && tab === 'history' ? <HistoryScreen /> : null}
+        {!settingsOpen &&
+        (tab === 'around' || tab === 'drive' || tab === 'plan') ? (
+          <StatusToast
+            message={status.message}
+            sticky={busy || tab === 'plan'}
+            lastPoiTitle={tab === 'plan' ? undefined : status.lastPoiTitle}
+            bottomOffset={
+              tab === 'plan' ? 8 : speaking || busy ? 72 : 8
+            }
+          />
+        ) : null}
         {!settingsOpen && (tab === 'around' || tab === 'drive') ? (
           <PlaybackOverlay
-            visible={speaking || busy}
+            visible={speaking}
             speaking={speaking}
             busy={busy}
             bottomOffset={0}

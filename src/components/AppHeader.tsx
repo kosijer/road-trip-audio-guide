@@ -48,7 +48,7 @@ export function AppHeader({
             style={styles.iconBtn}
             onPress={onPressSettings}
             hitSlop={8}>
-            <SettingsIcon color={colors.muted} size={20} />
+            <SettingsIcon color={colors.muted} size={18} bg={colors.card} />
           </Pressable>
         ) : (
           <View style={styles.iconBtnPlaceholder} />

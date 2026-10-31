@@ -27,9 +27,9 @@ import { rankPois } from './discover';
 /** How many heuristic-top candidates we hand to Clef. */
 export const CLEF_SHORTLIST = 8;
 
-/** Driving narrates one place; walking summarizes up to three. */
-export function selectionLimit(mode: 'driving' | 'walking'): number {
-  return mode === 'driving' ? 1 : 3;
+/** One focal place per story — clearer map pin and Next progression. */
+export function selectionLimit(_mode: 'driving' | 'walking'): number {
+  return 1;
 }
 
 /**

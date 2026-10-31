@@ -1,9 +1,9 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { t } from '../i18n';
 import { colors, radius, space, touchMin, type } from '../theme';
-import { AroundIcon, DriveIcon, HistoryIcon } from './Icons';
+import { AroundIcon, DriveIcon, HistoryIcon, PlanIcon } from './Icons';
 
-export type MainTab = 'around' | 'drive' | 'history';
+export type MainTab = 'around' | 'drive' | 'plan' | 'history';
 /** @deprecated use MainTab; settings lives in the header now */
 export type AppTab = MainTab | 'settings';
 
@@ -16,11 +16,12 @@ type Props = {
 
 const TABS: Array<{
   id: MainTab;
-  labelKey: 'tabAround' | 'tabDrive' | 'tabHistory';
+  labelKey: 'tabAround' | 'tabDrive' | 'tabPlan' | 'tabHistory';
   Icon: typeof AroundIcon;
 }> = [
   { id: 'around', labelKey: 'tabAround', Icon: AroundIcon },
   { id: 'drive', labelKey: 'tabDrive', Icon: DriveIcon },
+  { id: 'plan', labelKey: 'tabPlan', Icon: PlanIcon },
   { id: 'history', labelKey: 'tabHistory', Icon: HistoryIcon },
 ];
 
@@ -52,7 +53,9 @@ export function BottomTabs({
               <View style={[styles.iconWell, selected && styles.iconWellOn]}>
                 <Icon color={color} size={20} />
               </View>
-              <Text style={[styles.label, selected && styles.labelSelected]}>
+              <Text
+                style={[styles.label, selected && styles.labelSelected]}
+                numberOfLines={1}>
                 {t(tab.labelKey)}
               </Text>
             </Pressable>
@@ -99,8 +102,8 @@ const styles = StyleSheet.create({
   },
   label: {
     ...type.caption,
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 11,
+    lineHeight: 14,
     fontWeight: '600',
     color: colors.dim,
   },

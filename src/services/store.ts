@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { config } from '../config';
 import { cellId, haversineM } from '../geo';
 import type { AppLanguage } from '../i18n/types';
 import type {
@@ -88,6 +89,7 @@ const KEY = {
   visits: 'rtag:visits',
   prefetchBatch: 'rtag:prefetchBatch',
   prefetchSampleTarget: 'rtag:prefetchSampleTarget',
+  speedThresholdKmh: 'rtag:speedThresholdKmh',
 };
 
 export const PREFETCH_PLACE_DEFAULT: PrefetchPlaceTarget = 12;
@@ -99,9 +101,25 @@ export const SPEECH_RATE_MAX = 1.5;
 export const SPEECH_RATE_STEP = 0.05;
 export const SPEECH_RATE_DEFAULT = 1.0;
 
+export const SPEED_THRESHOLD_MIN_KMH = 3;
+export const SPEED_THRESHOLD_MAX_KMH = 40;
+export const SPEED_THRESHOLD_STEP_KMH = 1;
+export const SPEED_THRESHOLD_DEFAULT_KMH = 25;
+/** Below this, also require displacement across recent samples (GPS jitter). */
+export const SPEED_MOVE_GATE_KMH = 10;
+export const SPEED_MIN_DISPLACEMENT_M = 25;
+
 function clampSpeechRate(value: number): number {
   const clamped = Math.min(SPEECH_RATE_MAX, Math.max(SPEECH_RATE_MIN, value));
   return Math.round(clamped / SPEECH_RATE_STEP) * SPEECH_RATE_STEP;
+}
+
+export function clampSpeedThresholdKmh(value: number): number {
+  const clamped = Math.min(
+    SPEED_THRESHOLD_MAX_KMH,
+    Math.max(SPEED_THRESHOLD_MIN_KMH, value),
+  );
+  return Math.round(clamped / SPEED_THRESHOLD_STEP_KMH) * SPEED_THRESHOLD_STEP_KMH;
 }
 
 function parseLanguage(raw: string | null): AppLanguage | null {
@@ -181,16 +199,83 @@ export async function saveNarration(id: string, text: string): Promise<void> {
   await AsyncStorage.setItem(KEY.narration(id), text);
 }
 
-export async function getNarratedIds(): Promise<string[]> {
-  const raw = await AsyncStorage.getItem(KEY.narrated);
-  return raw ? (JSON.parse(raw) as string[]) : [];
+export type NarratedEntry = { id: string; at: number };
+
+export type ParsedNarrated = {
+  entries: NarratedEntry[];
+  legacy: boolean;
+};
+
+/** Accept legacy string[] or timed entries. Legacy ids are stamped "now". */
+export function parseNarratedEntries(
+  raw: string | null,
+  now = Date.now(),
+): ParsedNarrated {
+  if (!raw) {
+    return { entries: [], legacy: false };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { entries: [], legacy: false };
+  }
+  if (!Array.isArray(parsed)) {
+    return { entries: [], legacy: false };
+  }
+  if (parsed.length > 0 && parsed.every(item => typeof item === 'string')) {
+    return {
+      entries: (parsed as string[]).map(id => ({ id, at: now })),
+      legacy: true,
+    };
+  }
+  const out: NarratedEntry[] = [];
+  for (const item of parsed) {
+    if (
+      item &&
+      typeof item === 'object' &&
+      typeof (item as NarratedEntry).id === 'string' &&
+      typeof (item as NarratedEntry).at === 'number'
+    ) {
+      out.push({
+        id: (item as NarratedEntry).id,
+        at: (item as NarratedEntry).at,
+      });
+    }
+  }
+  return { entries: out, legacy: false };
 }
 
-export async function markNarrated(id: string): Promise<void> {
-  const ids = await getNarratedIds();
-  if (!ids.includes(id)) {
-    await AsyncStorage.setItem(KEY.narrated, JSON.stringify([...ids, id]));
+export function recentNarratedIds(
+  entries: NarratedEntry[],
+  cooldownMs: number,
+  now = Date.now(),
+): string[] {
+  return entries.filter(e => now - e.at < cooldownMs).map(e => e.id);
+}
+
+async function readNarratedEntries(): Promise<NarratedEntry[]> {
+  const raw = await AsyncStorage.getItem(KEY.narrated);
+  const { entries, legacy } = parseNarratedEntries(raw);
+  if (legacy) {
+    await AsyncStorage.setItem(KEY.narrated, JSON.stringify(entries));
   }
+  return entries;
+}
+
+export async function getNarratedIds(
+  cooldownMs: number = config.narratedCooldownMs,
+  now = Date.now(),
+): Promise<string[]> {
+  return recentNarratedIds(await readNarratedEntries(), cooldownMs, now);
+}
+
+export async function markNarrated(id: string, at = Date.now()): Promise<void> {
+  const entries = await readNarratedEntries();
+  const keepWindow = config.narratedCooldownMs * 2;
+  const next = entries.filter(e => e.id !== id && at - e.at < keepWindow);
+  next.push({ id, at });
+  await AsyncStorage.setItem(KEY.narrated, JSON.stringify(next));
 }
 
 export async function resetTripMemory(): Promise<void> {
@@ -227,6 +312,23 @@ export async function getSpeechRate(): Promise<number> {
     return migrated;
   }
   return SPEECH_RATE_DEFAULT;
+}
+
+export async function getSpeedThresholdKmh(): Promise<number> {
+  const raw = await AsyncStorage.getItem(KEY.speedThresholdKmh);
+  if (raw != null && raw !== '') {
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed)) {
+      return clampSpeedThresholdKmh(parsed);
+    }
+  }
+  return SPEED_THRESHOLD_DEFAULT_KMH;
+}
+
+export async function saveSpeedThresholdKmh(kmh: number): Promise<number> {
+  const next = clampSpeedThresholdKmh(kmh);
+  await AsyncStorage.setItem(KEY.speedThresholdKmh, String(next));
+  return next;
 }
 
 export async function saveSpeechRate(rate: number): Promise<number> {

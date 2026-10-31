@@ -15,6 +15,7 @@ type Props = {
   speaking: boolean;
   busy: boolean;
   setBusy: (busy: boolean) => void;
+  onNext: () => void;
 };
 
 export function AroundScreen({
@@ -23,6 +24,7 @@ export function AroundScreen({
   speaking,
   busy,
   setBusy,
+  onNext,
 }: Props) {
   const { t } = useI18n();
   const [mapCenter, setMapCenter] = useState<GeoPoint | null>(
@@ -92,15 +94,11 @@ export function AroundScreen({
         </Text>
       </Pressable>
 
-      {status.message.trim() ? (
-        <View style={sharedStyles.card}>
-          <Text style={sharedStyles.message}>{status.message}</Text>
-        </View>
-      ) : null}
-
       <LastStoryCard
         title={status.lastPoiTitle}
         narration={status.lastNarration}
+        busy={busy}
+        onNext={onNext}
       />
     </ScrollView>
   );
