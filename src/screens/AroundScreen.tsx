@@ -1,10 +1,10 @@
 import { useCallback } from 'react';
-import { Pressable, ScrollView, Text } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { LastStoryCard } from '../components/LastStoryCard';
 import { PlaybackRow } from '../components/PlaybackRow';
 import { useI18n } from '../hooks/useI18n';
 import { walkingNow } from '../services/tripEngine';
-import { sharedStyles } from '../theme';
+import { colors, sharedStyles } from '../theme';
 import type { TripStatus } from '../types';
 
 type Props = {
@@ -41,14 +41,22 @@ export function AroundScreen({
     <ScrollView
       contentContainerStyle={sharedStyles.content}
       keyboardShouldPersistTaps="handled">
-      <Text style={sharedStyles.title}>{t('tabAround')}</Text>
-      <Text style={sharedStyles.subtitle}>{t('subtitle')}</Text>
+      <View style={sharedStyles.headerBlock}>
+        <Text style={sharedStyles.screenTitle}>{t('tabAround')}</Text>
+        <Text style={sharedStyles.subtitle}>{t('subtitle')}</Text>
+      </View>
 
       <Pressable
-        style={[sharedStyles.secondary, busy && sharedStyles.disabled]}
+        accessibilityRole="button"
+        android_ripple={{ color: colors.ripple }}
+        style={[
+          sharedStyles.primary,
+          sharedStyles.go,
+          busy && sharedStyles.disabled,
+        ]}
         onPress={onWalk}
         disabled={busy}>
-        <Text style={sharedStyles.secondaryText}>
+        <Text style={sharedStyles.primaryText}>
           {busy ? t('walkingBusy') : t('walking')}
         </Text>
       </Pressable>
@@ -60,7 +68,9 @@ export function AroundScreen({
         onNext={onNext}
       />
 
-      <Text style={sharedStyles.message}>{status.message || '—'}</Text>
+      <View style={sharedStyles.card}>
+        <Text style={sharedStyles.message}>{status.message || '—'}</Text>
+      </View>
 
       <LastStoryCard
         title={status.lastPoiTitle}

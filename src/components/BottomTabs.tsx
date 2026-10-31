@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { t } from '../i18n';
-import { colors } from '../theme';
+import { colors, radius, space, touchMin, type } from '../theme';
 
 export type AppTab = 'drive' | 'around' | 'settings';
 
@@ -10,7 +10,10 @@ type Props = {
   bottomInset: number;
 };
 
-const TABS: Array<{ id: AppTab; labelKey: 'tabDrive' | 'tabAround' | 'tabSettings' }> = [
+const TABS: Array<{
+  id: AppTab;
+  labelKey: 'tabDrive' | 'tabAround' | 'tabSettings';
+}> = [
   { id: 'drive', labelKey: 'tabDrive' },
   { id: 'around', labelKey: 'tabAround' },
   { id: 'settings', labelKey: 'tabSettings' },
@@ -18,14 +21,24 @@ const TABS: Array<{ id: AppTab; labelKey: 'tabDrive' | 'tabAround' | 'tabSetting
 
 export function BottomTabs({ active, onChange, bottomInset }: Props) {
   return (
-    <View style={[styles.bar, { paddingBottom: Math.max(bottomInset, 8) }]}>
+    <View
+      style={[
+        styles.bar,
+        { paddingBottom: Math.max(bottomInset, space.sm) },
+      ]}>
       {TABS.map(tab => {
         const selected = tab.id === active;
         return (
           <Pressable
             key={tab.id}
-            style={[styles.tab, selected && styles.tabSelected]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected }}
+            android_ripple={{ color: colors.ripple, borderless: false }}
+            style={styles.tab}
             onPress={() => onChange(tab.id)}>
+            <View
+              style={[styles.indicator, selected && styles.indicatorOn]}
+            />
             <Text style={[styles.label, selected && styles.labelSelected]}>
               {t(tab.labelKey)}
             </Text>
@@ -39,26 +52,37 @@ export function BottomTabs({ active, onChange, bottomInset }: Props) {
 const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    borderTopWidth: 1,
+    paddingHorizontal: space.sm,
+    paddingTop: space.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
-    backgroundColor: colors.bg,
+    backgroundColor: colors.surface,
   },
   tab: {
     flex: 1,
-    minHeight: 44,
-    borderRadius: 12,
+    minHeight: touchMin + 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.card,
+    gap: 6,
+    borderRadius: radius.sm,
+    paddingVertical: space.sm,
   },
-  tabSelected: {
-    backgroundColor: colors.border,
-    borderWidth: 1,
-    borderColor: colors.accent,
+  indicator: {
+    width: 22,
+    height: 3,
+    borderRadius: radius.pill,
+    backgroundColor: 'transparent',
   },
-  label: { color: colors.dim, fontSize: 14, fontWeight: '700' },
-  labelSelected: { color: colors.text },
+  indicatorOn: {
+    backgroundColor: colors.accent,
+  },
+  label: {
+    ...type.caption,
+    fontWeight: '600',
+    color: colors.dim,
+  },
+  labelSelected: {
+    color: colors.text,
+    fontWeight: '700',
+  },
 });

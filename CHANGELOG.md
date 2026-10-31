@@ -27,6 +27,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Gemini default model is `gemini-flash-lite-latest` with retries across lite fallbacks (`GEMINI_MODEL` in `.env`); avoids frequent 503/timeouts on `gemini-flash-latest`.
 - Docs/README no longer frame the app as Crete-trip-only; general road/city companion.
 - App UI restructured into Drive / Around / Settings tabs; speech rate is a continuous slider (0.50–1.50); English/Serbian UI (default English) with separate narration language that follows UI until overridden.
+- Visual polish: clearer type scale, 48dp+ touch targets, Material-ish bottom nav indicator, grouped Settings cards, denser diagnostics, Android ripples — same flows/behavior.
 
 ### Fixed
 - Weather caveats: Open-Meteo aligned to the current hour (not midnight), higher rain thresholds, real GPS for weather even with debug POI location, Gemini instructed not to invent rain.

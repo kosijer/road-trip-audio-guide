@@ -14,7 +14,7 @@ import { getCurrentLocation } from '../services/location';
 import { runPrefetch } from '../services/routePrefetch';
 import { getStatus } from '../services/store';
 import { endTrip, startTrip } from '../services/tripEngine';
-import { sharedStyles } from '../theme';
+import { colors, sharedStyles } from '../theme';
 import type { TripStatus } from '../types';
 
 type Props = {
@@ -84,10 +84,14 @@ export function DriveScreen({
     <ScrollView
       contentContainerStyle={sharedStyles.content}
       keyboardShouldPersistTaps="handled">
-      <Text style={sharedStyles.title}>{t('appName')}</Text>
-      <Text style={sharedStyles.subtitle}>{t('subtitle')}</Text>
+      <View style={sharedStyles.headerBlock}>
+        <Text style={sharedStyles.title}>{t('appName')}</Text>
+        <Text style={sharedStyles.subtitle}>{t('subtitle')}</Text>
+      </View>
 
       <Pressable
+        accessibilityRole="button"
+        android_ripple={{ color: colors.ripple }}
         style={[
           sharedStyles.primary,
           status.tripActive ? sharedStyles.stop : sharedStyles.go,
@@ -112,33 +116,38 @@ export function DriveScreen({
           label={t('statusTrip')}
           value={status.tripActive ? t('tripActive') : t('tripIdle')}
         />
+        <View style={sharedStyles.divider} />
         <Text style={sharedStyles.message}>{status.message || '—'}</Text>
       </View>
 
-      <Text style={sharedStyles.section}>{t('routePrep')}</Text>
-      <Text style={sharedStyles.hint}>{t('prefetchHint')}</Text>
-      <TextInput
-        value={origin}
-        onChangeText={setOrigin}
-        placeholder={t('originPlaceholder')}
-        placeholderTextColor="#8a7d72"
-        style={sharedStyles.input}
-      />
-      <TextInput
-        value={destination}
-        onChangeText={setDestination}
-        placeholder={t('destinationPlaceholder')}
-        placeholderTextColor="#8a7d72"
-        style={sharedStyles.input}
-      />
-      <Pressable
-        style={[sharedStyles.secondary, busy && sharedStyles.disabled]}
-        onPress={onPrefetch}
-        disabled={busy || !destination.trim()}>
-        <Text style={sharedStyles.secondaryText}>
-          {busy ? t('prefetching') : t('prefetch')}
-        </Text>
-      </Pressable>
+      <View style={sharedStyles.sectionCard}>
+        <Text style={sharedStyles.sectionCardTitle}>{t('routePrep')}</Text>
+        <Text style={sharedStyles.hint}>{t('prefetchHint')}</Text>
+        <TextInput
+          value={origin}
+          onChangeText={setOrigin}
+          placeholder={t('originPlaceholder')}
+          placeholderTextColor={colors.dim}
+          style={sharedStyles.input}
+        />
+        <TextInput
+          value={destination}
+          onChangeText={setDestination}
+          placeholder={t('destinationPlaceholder')}
+          placeholderTextColor={colors.dim}
+          style={sharedStyles.input}
+        />
+        <Pressable
+          accessibilityRole="button"
+          android_ripple={{ color: colors.ripple }}
+          style={[sharedStyles.secondary, busy && sharedStyles.disabled]}
+          onPress={onPrefetch}
+          disabled={busy || !destination.trim()}>
+          <Text style={sharedStyles.secondaryText}>
+            {busy ? t('prefetching') : t('prefetch')}
+          </Text>
+        </Pressable>
+      </View>
 
       <LastStoryCard
         title={status.lastPoiTitle}

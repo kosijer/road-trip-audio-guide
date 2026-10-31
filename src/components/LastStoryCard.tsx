@@ -12,12 +12,10 @@ export function LastStoryCard({ title, narration }: Props) {
     return null;
   }
   return (
-    <>
-      <Text style={sharedStyles.section}>{t('lastStory')}</Text>
-      <View style={sharedStyles.card}>
-        {title ? <Text style={sharedStyles.storyTitle}>{title}</Text> : null}
-        <Text style={sharedStyles.story}>{narration}</Text>
-      </View>
-    </>
+    <View style={sharedStyles.sectionCard}>
+      <Text style={sharedStyles.sectionCardTitle}>{t('lastStory')}</Text>
+      {title ? <Text style={sharedStyles.storyTitle}>{title}</Text> : null}
+      <Text style={sharedStyles.story}>{narration}</Text>
+    </View>
   );
 }

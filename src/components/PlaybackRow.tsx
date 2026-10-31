@@ -1,6 +1,6 @@
 import { Pressable, Text, View } from 'react-native';
 import { t } from '../i18n';
-import { sharedStyles } from '../theme';
+import { colors, sharedStyles } from '../theme';
 
 type Props = {
   speaking: boolean;
@@ -13,12 +13,16 @@ export function PlaybackRow({ speaking, busy, onStop, onNext }: Props) {
   return (
     <View style={sharedStyles.rowBtns}>
       <Pressable
+        accessibilityRole="button"
+        android_ripple={{ color: colors.ripple }}
         style={[sharedStyles.halfBtn, !speaking && sharedStyles.disabled]}
         onPress={onStop}
         disabled={!speaking}>
         <Text style={sharedStyles.secondaryText}>{t('stopSpeech')}</Text>
       </Pressable>
       <Pressable
+        accessibilityRole="button"
+        android_ripple={{ color: colors.ripple }}
         style={[sharedStyles.halfBtn, busy && sharedStyles.disabled]}
         onPress={onNext}
         disabled={busy}>
