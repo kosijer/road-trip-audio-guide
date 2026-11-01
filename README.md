@@ -61,6 +61,13 @@ Output: `android/app/build/outputs/apk/debug/app-debug.apk`
 
 On the phone, install a Serbian voice under **Settings → Accessibility → Text-to-speech** (Google).
 
+## Screen docs (demos / PowerPoint)
+
+Per-screen mental models, API pipelines, and worked examples:
+
+- [`docs/screens/README.md`](docs/screens/README.md) — index  
+- Around · Drive · Plan · History · Settings/Profile under `docs/screens/`
+
 ## Repo notes
 
 Work happens on `main`. Do not commit `.env`. Document user-facing changes in `CHANGELOG.md` and commit after each sizable change.
