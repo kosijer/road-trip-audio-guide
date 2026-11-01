@@ -81,8 +81,10 @@ idle → selecting → teaser → hold → full → cooldown → idle
 
 Exact numbers tunable in config; starting defaults:
 
-- **Narrow:** half-angle ~25°, lookahead ~3–5 min equivalent distance (or ~3–5 km at speed).
-- **Wide detour:** half-angle ~60°, lookahead ~8–12 min / larger max distance.
+- **Narrow:** half-angle ~25°.
+- **Wide detour:** half-angle ~60°.
+- **Lead time scales with speed** (`announceLeadMinutes`): ~4 / 8 min near 40 km/h, ~15 / 22 min near 110 km/h (~70 mph), so highway drivers get time to organize a detour. Distance caps are high (~30–45 km), not a fixed 5 km that collapses ETA at speed.
+- Prefer candidates near the ideal lead ETA; skip “already on top of you” when farther options exist.
 - Discard POIs behind the vehicle (outside forward cone).
 
 ### Candidate pipeline

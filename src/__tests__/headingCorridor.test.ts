@@ -1,10 +1,12 @@
 import {
+  announceLeadMinutes,
   bearingDeg,
   etaMinutes,
   evaluateCorridor,
   filterInCone,
   headingFromSamples,
   lookaheadDistanceM,
+  minUsefulEtaMinutes,
   relativeBearingDeg,
   selectCorridorTier,
   sideFromRelative,
@@ -141,5 +143,16 @@ describe('eta / lookahead', () => {
   it('lookaheadDistanceM uses speed', () => {
     // 36 km/h = 10 m/s × 5 min = 3000 m
     expect(lookaheadDistanceM(36, 5)).toBeCloseTo(3000, 0);
+  });
+
+  it('announceLeadMinutes grows with speed', () => {
+    const city = announceLeadMinutes(48);
+    const highway = announceLeadMinutes(113); // ~70 mph
+    expect(city.narrowMin).toBeLessThan(8);
+    expect(highway.narrowMin).toBeGreaterThanOrEqual(14);
+    expect(highway.wideMin).toBeGreaterThan(highway.narrowMin);
+    expect(minUsefulEtaMinutes(city.narrowMin)).toBeLessThan(
+      city.narrowMin,
+    );
   });
 });

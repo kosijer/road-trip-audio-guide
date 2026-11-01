@@ -85,6 +85,33 @@ export function etaMinutes(distanceM: number, speedKmh: number): number {
   return Math.max(1, Math.round(distanceM / ((speed / 3.6) * 60)));
 }
 
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, n));
+}
+
+/**
+ * How far ahead (in minutes) to search / prefer announcing, by speed.
+ * Slow city: a few minutes is enough to decide. Highway: need ~15 min
+ * to catch an exit / organize a detour.
+ *
+ * Anchors: ~40 km/h → 4 / 8 min; ~110 km/h (~70 mph) → 15 / 22 min.
+ */
+export function announceLeadMinutes(speedKmh: number): {
+  narrowMin: number;
+  wideMin: number;
+} {
+  const speed = Math.max(speedKmh, 20);
+  const t = clamp((speed - 40) / (110 - 40), 0, 1);
+  const narrowMin = 4 + t * (15 - 4);
+  const wideMin = 8 + t * (22 - 8);
+  return { narrowMin, wideMin };
+}
+
+/** Soft floor: avoid teasing places that are already almost on top of you. */
+export function minUsefulEtaMinutes(narrowLeadMin: number): number {
+  return Math.max(1.5, narrowLeadMin * 0.45);
+}
+
 export function evaluateCorridor(
   origin: GeoPoint,
   headingDeg: number,

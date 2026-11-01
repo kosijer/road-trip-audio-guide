@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- Drive v2 lead time scales with speed (~4 min in town → ~15 min near highway) so teasers arrive early enough to organize a detour.
+
 ### Added
 - History: 👍/👎 taste feedback + Maps pin link (opens place, no walk/drive directions).
 - Debug: optional simulate-driving motion from a fake location (~48 km/h east) for emulator demos.

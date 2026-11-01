@@ -41,10 +41,12 @@ export const config = {
   driveTeaserHoldMs: num(DRIVE_TEASER_HOLD_MS, 10_000),
   driveNarrowHalfAngleDeg: 25,
   driveWideHalfAngleDeg: 60,
-  driveNarrowLookaheadMin: 5,
-  driveWideLookaheadMin: 12,
-  driveNarrowLookaheadM: 5_000,
-  driveWideLookaheadM: 12_000,
+  /**
+   * Hard distance caps for cones (meters). Lead *time* scales with speed;
+   * these only stop absurd discovery radii (highway 15–22 min ≈ 25–40 km).
+   */
+  driveNarrowLookaheadCapM: 30_000,
+  driveWideLookaheadCapM: 45_000,
   /** Min gap after a full story before selecting again. */
   driveSelectCooldownMs: num(DRIVING_TRIGGER_INTERVAL_MIN, 3) * 60_000,
   /** Shorter gap after Skip so the trip keeps moving. */

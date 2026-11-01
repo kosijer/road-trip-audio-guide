@@ -16,9 +16,11 @@ import { applyHoursPolicy, lookupOpeningHours } from './places';
 import { discoverForNarration } from './prefetch';
 import { rankPois } from './poi/discover';
 import {
+  announceLeadMinutes,
   etaMinutes,
   headingFromSamples,
   lookaheadDistanceM,
+  minUsefulEtaMinutes,
   selectCorridorTier,
   type CorridorHit,
   type CorridorSide,
@@ -218,13 +220,14 @@ async function selectCandidate(
     return null;
   }
 
+  const leads = announceLeadMinutes(sample.speedKmh);
   const narrowMax = Math.min(
-    config.driveNarrowLookaheadM,
-    lookaheadDistanceM(sample.speedKmh, config.driveNarrowLookaheadMin),
+    config.driveNarrowLookaheadCapM,
+    lookaheadDistanceM(sample.speedKmh, leads.narrowMin),
   );
   const wideMax = Math.min(
-    config.driveWideLookaheadM,
-    lookaheadDistanceM(sample.speedKmh, config.driveWideLookaheadMin),
+    config.driveWideLookaheadCapM,
+    lookaheadDistanceM(sample.speedKmh, leads.wideMin),
   );
   const searchRadius = Math.max(wideMax, config.drivingPoiRadiusM);
 
@@ -261,7 +264,32 @@ async function selectCandidate(
     return null;
   }
 
-  const withDistance: Poi[] = hits.map(h => ({
+  // Prefer places with enough lead time; fall back if everything is close.
+  const minEta = minUsefulEtaMinutes(leads.narrowMin);
+  const withEta = hits.map(h => ({
+    ...h,
+    etaMin: etaMinutes(h.corridor.distanceM, sample.speedKmh),
+  }));
+  const farEnough = withEta.filter(h => h.etaMin >= minEta);
+  const pool = farEnough.length > 0 ? farEnough : withEta;
+
+  // Bias toward the speed-appropriate lead (highway ≈ 15 min, not 2).
+  const idealEta = leads.narrowMin;
+  const sortedByLead = [...pool].sort((a, b) => {
+    const da = Math.abs(a.etaMin - idealEta);
+    const db = Math.abs(b.etaMin - idealEta);
+    if (da !== db) {
+      return da - db;
+    }
+    return a.corridor.distanceM - b.corridor.distanceM;
+  });
+  // Preference rank among the best lead-time matches first (top half).
+  const shortlist = sortedByLead.slice(
+    0,
+    Math.max(3, Math.ceil(sortedByLead.length / 2)),
+  );
+
+  const withDistance: Poi[] = shortlist.map(h => ({
     ...h,
     distanceM: h.corridor.distanceM,
   }));
