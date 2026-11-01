@@ -32,6 +32,25 @@ export type Poi = {
   weatherCaveat?: string;
 };
 
+export type DrivePhase =
+  | 'idle'
+  | 'selecting'
+  | 'teaser'
+  | 'hold'
+  | 'full'
+  | 'skipped'
+  | 'cooldown';
+
+export type UpcomingPoi = {
+  id: string;
+  title: string;
+  latitude: number;
+  longitude: number;
+  etaMin?: number;
+  distanceM?: number;
+  side?: 'left' | 'right' | 'ahead';
+};
+
 export type TripStatus = {
   tripActive: boolean;
   moving: boolean;
@@ -45,6 +64,12 @@ export type TripStatus = {
   lastExposureId?: string;
   /** Coordinates for map markers of the last narrated place(s). */
   lastPoiMarkers?: Array<{ id: string; title: string; latitude: number; longitude: number }>;
+  /** Drive v2 coming-up queue phase. */
+  drivePhase?: DrivePhase;
+  /** Place currently teased / held before full narration. */
+  upcomingPoi?: UpcomingPoi;
+  /** Spoken/shown teaser line while in teaser/hold. */
+  teaserText?: string;
   llmCalls: number;
   message: string;
   prefetchCount: number;

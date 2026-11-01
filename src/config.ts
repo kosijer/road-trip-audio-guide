@@ -2,6 +2,7 @@ import {
   CLEF_ENABLED,
   CLOUDFLARE_ACCOUNT_ID,
   CLOUDFLARE_API_TOKEN,
+  DRIVE_TEASER_HOLD_MS,
   DRIVING_POI_RADIUS_M,
   DRIVING_SPEED_THRESHOLD_KMH,
   DRIVING_TRIGGER_INTERVAL_MIN,
@@ -36,6 +37,18 @@ export const config = {
   drivingPoiRadiusM: num(DRIVING_POI_RADIUS_M, 5000),
   walkingPoiRadiusM: num(WALKING_POI_RADIUS_M, 800),
   maxLlmCallsPerTrip: num(MAX_LLM_CALLS_PER_TRIP, 30),
+  /** Silence after teaser before full narration (Drive v2). */
+  driveTeaserHoldMs: num(DRIVE_TEASER_HOLD_MS, 10_000),
+  driveNarrowHalfAngleDeg: 25,
+  driveWideHalfAngleDeg: 60,
+  driveNarrowLookaheadMin: 5,
+  driveWideLookaheadMin: 12,
+  driveNarrowLookaheadM: 5_000,
+  driveWideLookaheadM: 12_000,
+  /** Min gap after a full story before selecting again. */
+  driveSelectCooldownMs: num(DRIVING_TRIGGER_INTERVAL_MIN, 3) * 60_000,
+  /** Shorter gap after Skip so the trip keeps moving. */
+  driveSkipCooldownMs: 45_000,
   /** Skip re-narrating the same place within this window (Around / Next / Drive). */
   narratedCooldownMs: 6 * 60 * 60 * 1000,
   locationTickMs: 15_000,

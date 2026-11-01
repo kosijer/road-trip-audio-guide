@@ -13,4 +13,5 @@ declare module '@env' {
   export const DRIVING_POI_RADIUS_M: string;
   export const WALKING_POI_RADIUS_M: string;
   export const MAX_LLM_CALLS_PER_TRIP: string;
+  export const DRIVE_TEASER_HOLD_MS: string;
 }

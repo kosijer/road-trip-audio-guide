@@ -184,3 +184,23 @@ export async function setSpeechMuted(muted: boolean): Promise<boolean> {
 export function isSpeaking(): boolean {
   return speaking || queue.length > 0;
 }
+
+/** Resolve when the TTS queue is idle (or on timeout). */
+export function waitForSpeechIdle(timeoutMs = 90_000): Promise<void> {
+  if (!isSpeaking()) {
+    return Promise.resolve();
+  }
+  return new Promise(resolve => {
+    const done = () => {
+      clearTimeout(timer);
+      sub.remove();
+      resolve();
+    };
+    const timer = setTimeout(done, timeoutMs);
+    const sub = DeviceEventEmitter.addListener(TTS_EVENT, () => {
+      if (!isSpeaking()) {
+        done();
+      }
+    });
+  });
+}

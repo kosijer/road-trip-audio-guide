@@ -14,7 +14,11 @@ import {
 import { getFreshLocation } from '../services/location';
 import { prefetchBatchUsableForDrive } from '../services/prefetch';
 import { getPrefetchBatch } from '../services/store';
-import { endTrip, startTrip } from '../services/tripEngine';
+import {
+  endTrip,
+  skipUpcomingTeaser,
+  startTrip,
+} from '../services/tripEngine';
 import { colors, sharedStyles, space, type } from '../theme';
 import type { GeoPoint, PrefetchBatch, TripStatus } from '../types';
 
@@ -85,6 +89,7 @@ export function DriveScreen({
   const locating = mapCenter == null;
   const [batch, setBatch] = useState<PrefetchBatch | null>(null);
   const [mood, setMood] = useState<SessionMood>(null);
+  const [skipBusy, setSkipBusy] = useState(false);
 
   useEffect(() => {
     void getSessionState().then(s => setMood(s.mood));
@@ -115,9 +120,22 @@ export function DriveScreen({
     };
   }, [status.lastLocation]);
 
+  const upcoming = status.upcomingPoi;
+  const showComingUp =
+    status.tripActive &&
+    Boolean(upcoming) &&
+    (status.drivePhase === 'teaser' || status.drivePhase === 'hold');
+
   const suggested = useMemo((): SuggestedPlace | null => {
-    // Around also writes lastPoiMarkers — only trust them during an active
-    // trip (Drive narration). Idle Drive shows Plan corridor nearest.
+    if (status.tripActive && upcoming) {
+      return {
+        id: upcoming.id,
+        title: upcoming.title,
+        latitude: upcoming.latitude,
+        longitude: upcoming.longitude,
+        distanceM: upcoming.distanceM,
+      };
+    }
     if (status.tripActive) {
       const focus = status.lastPoiMarkers?.[0];
       if (focus) {
@@ -129,9 +147,10 @@ export function DriveScreen({
           : undefined;
         return { ...focus, distanceM };
       }
+      return null;
     }
     return nearestFromBatch(batch, mapCenter);
-  }, [batch, mapCenter, status.lastPoiMarkers, status.tripActive]);
+  }, [batch, mapCenter, status.lastPoiMarkers, status.tripActive, upcoming]);
 
   const markers = useMemo(
     () =>
@@ -167,21 +186,36 @@ export function DriveScreen({
     }
   }, [setBusy, setStatus, status.tripActive, t]);
 
+  const onSkip = useCallback(async () => {
+    if (skipBusy) {
+      return;
+    }
+    setSkipBusy(true);
+    try {
+      setStatus(await skipUpcomingTeaser());
+    } finally {
+      setSkipBusy(false);
+    }
+  }, [setStatus, skipBusy]);
+
   const focus = status.lastPoiMarkers?.[0];
-  const showNarrated = Boolean(status.lastNarration && status.tripActive);
-  const distanceLabel = suggested?.distanceM != null
-    ? t('driveDistance', {
-        km: (suggested.distanceM / 1000).toFixed(
-          suggested.distanceM >= 1000 ? 1 : 2,
-        ),
-      })
-    : undefined;
+  const showNarrated = Boolean(
+    status.lastNarration && status.tripActive && !showComingUp,
+  );
+  const distanceLabel =
+    suggested?.distanceM != null
+      ? t('driveDistance', {
+          km: (suggested.distanceM / 1000).toFixed(
+            suggested.distanceM >= 1000 ? 1 : 2,
+          ),
+        })
+      : undefined;
 
   return (
     <ScrollView
       contentContainerStyle={[
         sharedStyles.content,
-        (speaking || busy) && sharedStyles.contentWithOverlay,
+        (speaking || busy || skipBusy) && sharedStyles.contentWithOverlay,
       ]}
       keyboardShouldPersistTaps="handled">
       <View style={sharedStyles.mapCard}>
@@ -228,7 +262,44 @@ export function DriveScreen({
         </Text>
       </Pressable>
 
-      {showNarrated ? (
+      {showComingUp && upcoming ? (
+        <View style={styles.comingUp}>
+          <Text style={styles.comingUpLabel}>{t('driveComingUp')}</Text>
+          <Text style={styles.comingUpTitle}>{upcoming.title}</Text>
+          {status.teaserText ? (
+            <Text style={styles.comingUpBody}>{status.teaserText}</Text>
+          ) : null}
+          {upcoming.etaMin != null || upcoming.distanceM != null ? (
+            <Text style={sharedStyles.hint}>
+              {[
+                upcoming.etaMin != null ? `~${upcoming.etaMin} min` : null,
+                distanceLabel,
+                upcoming.side,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </Text>
+          ) : null}
+          {status.drivePhase === 'hold' ? (
+            <Text style={sharedStyles.hint}>{t('driveTeaserHoldHint')}</Text>
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            android_ripple={{ color: colors.ripple }}
+            style={[
+              sharedStyles.secondary,
+              (busy || skipBusy) && sharedStyles.disabled,
+            ]}
+            onPress={() => {
+              void onSkip();
+            }}
+            disabled={busy || skipBusy}>
+            <Text style={sharedStyles.secondaryText}>
+              {t('driveTeaserSkip')}
+            </Text>
+          </Pressable>
+        </View>
+      ) : showNarrated ? (
         <PlaceStoryCard
           title={status.lastPoiTitle}
           narration={status.lastNarration}
@@ -250,7 +321,7 @@ export function DriveScreen({
           }
           busy={busy}
         />
-      ) : suggested ? (
+      ) : suggested && !status.tripActive ? (
         <PlaceStoryCard
           title={suggested.title}
           distanceLabel={distanceLabel}
@@ -273,5 +344,23 @@ const styles = StyleSheet.create({
     marginTop: -space.sm,
     marginBottom: space.sm,
     paddingHorizontal: space.xs,
+  },
+  comingUp: {
+    gap: space.sm,
+    marginTop: space.sm,
+  },
+  comingUpLabel: {
+    ...type.caption,
+    color: colors.accent,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  comingUpTitle: {
+    ...type.title,
+    color: colors.text,
+  },
+  comingUpBody: {
+    ...type.body,
+    color: colors.text,
   },
 });

@@ -2,7 +2,6 @@ import { DeviceEventEmitter } from 'react-native';
 import { config } from '../config';
 import { t } from '../i18n';
 import type { LocationSample, Poi, TripStatus } from '../types';
-import { cellId } from '../geo';
 import { effectiveSpeedKmh, evaluateMoving } from './motion';
 import {
   emptyStatus,
@@ -29,10 +28,22 @@ import { rankPois } from './poi/discover';
 import { selectPoisForNarration } from './poi/rankWithDecision';
 import { discoverForNarration } from './prefetch';
 import { applyHoursPolicy, lookupOpeningHours } from './places';
+import {
+  configureDriveQueue,
+  onDriveTick,
+  resetDriveQueue,
+  skipDriveTeaser,
+} from './driveQueue';
 import { speak, stopSpeaking } from './tts';
 import { getWeather } from './weather';
 
 export const STATUS_EVENT = 'rtag-status';
+
+configureDriveQueue({
+  narrateFull: async (poi: Poi) => {
+    await narrateFixedPoi(poi);
+  },
+});
 
 type BackgroundActionsApi = {
   isRunning: () => boolean;
@@ -152,12 +163,14 @@ export async function startTrip(): Promise<TripStatus> {
     return patch({ tripActive: false, message: t('permissionNeeded') });
   }
   await resetTripMemory();
+  resetDriveQueue();
   motionSamples.length = 0;
   cachedSpeedThresholdKmh = await getSpeedThresholdKmh();
   await patch({
     ...emptyStatus(),
     tripActive: true,
     llmCalls: 0,
+    drivePhase: 'idle',
     message: t('tripActive'),
   });
 
@@ -188,12 +201,21 @@ export async function endTrip(): Promise<TripStatus> {
   } catch {
     // ignore
   }
+  resetDriveQueue();
   await stopSpeaking();
   return patch({
     tripActive: false,
     moving: false,
+    drivePhase: 'idle',
+    upcomingPoi: undefined,
+    teaserText: undefined,
     message: t('tripIdle'),
   });
+}
+
+export async function skipUpcomingTeaser(): Promise<TripStatus> {
+  await skipDriveTeaser();
+  return getStatus();
 }
 
 export async function drivingTick(): Promise<void> {
@@ -215,7 +237,6 @@ export async function drivingTick(): Promise<void> {
       return;
     }
     const { moving, sample } = pushMotionSample(location);
-    const currentCell = cellId(sample);
     // Motion state is shown on Drive UI — do not put it in `message`
     // (that feeds the global toast and flashes on Plan).
     await patch({
@@ -225,15 +246,8 @@ export async function drivingTick(): Promise<void> {
     if (!moving) {
       return;
     }
-    const intervalMs = config.drivingTriggerIntervalMin * 60_000;
-    const dueByTime =
-      !status.lastTriggerAt || Date.now() - status.lastTriggerAt >= intervalMs;
-    const dueByCell = currentCell !== status.lastCellId;
-    if (!dueByTime && !dueByCell) {
-      return;
-    }
-    await maybeNarrate(sample, 'driving');
-    await patch({ lastTriggerAt: Date.now(), lastCellId: currentCell });
+    await onDriveTick(sample, [...motionSamples]);
+    await patch({ lastTriggerAt: Date.now() });
   } finally {
     ticking = false;
   }
@@ -284,6 +298,18 @@ async function maybeNarrate(
   opts?: { skipHeard?: boolean },
 ): Promise<void> {
   const run = () => narrateOnce(location, mode, opts);
+  const next = narrateTail.then(run, run);
+  narrateTail = next;
+  await next;
+}
+
+/** Full narration for a POI already chosen by the Drive v2 queue. */
+async function narrateFixedPoi(poi: Poi): Promise<void> {
+  const run = () =>
+    deliverNarration([poi], 'driving', {
+      extras: [],
+      skipNewExposure: true,
+    });
   const next = narrateTail.then(run, run);
   narrateTail = next;
   await next;
@@ -386,6 +412,15 @@ async function narrateOnce(
 
   // Heuristic shortlist first; Clef (when enabled) re-ranks before Gemini writes.
   const selected = await selectPoisForNarration(candidates, mode);
+  await deliverNarration(selected, mode, { extras });
+}
+
+async function deliverNarration(
+  selected: Poi[],
+  mode: 'driving' | 'walking',
+  opts: { extras: string[]; skipNewExposure?: boolean },
+): Promise<void> {
+  const extras = opts.extras;
   // v2: bust scripts that hallucinated weather before the rain-prompt fix.
   const cacheKey = `v2|${selected.map(p => p.id).join('|')}`;
   const cached = await getNarration(cacheKey);
@@ -411,7 +446,7 @@ async function narrateOnce(
   }
   // One history entry per story — primary place only (avoids near-duplicate rows).
   const primary = selected[0];
-  let lastExposureId: string | undefined;
+  let lastExposureId: string | undefined = (await getStatus()).lastExposureId;
   if (primary) {
     await recordVisit({
       poiId: primary.id,
@@ -424,25 +459,26 @@ async function narrateOnce(
       mode,
       narrationExcerpt: text.slice(0, 280),
     });
-    try {
-      const {
-        buildExposureContext,
-        getOrClassifyPoi,
-        recordExposure,
-      } = await import('../preferences');
-      const classification = await getOrClassifyPoi(primary);
-      const weatherOk =
-        extras.length > 0 ? false : null;
-      const exposure = await recordExposure({
-        poiId: primary.id,
-        categories: classification.categories,
-        primaryCategory: classification.primaryCategory,
-        context: buildExposureContext(mode, { weatherOk }),
-        viable: true,
-      });
-      lastExposureId = exposure.id;
-    } catch (error) {
-      console.warn('exposure record failed', error);
+    if (!opts.skipNewExposure) {
+      try {
+        const {
+          buildExposureContext,
+          getOrClassifyPoi,
+          recordExposure,
+        } = await import('../preferences');
+        const classification = await getOrClassifyPoi(primary);
+        const weatherOk = extras.length > 0 ? false : null;
+        const exposure = await recordExposure({
+          poiId: primary.id,
+          categories: classification.categories,
+          primaryCategory: classification.primaryCategory,
+          context: buildExposureContext(mode, { weatherOk }),
+          viable: true,
+        });
+        lastExposureId = exposure.id;
+      } catch (error) {
+        console.warn('exposure record failed', error);
+      }
     }
   }
   const spoken = await speak(text);
@@ -465,6 +501,8 @@ async function narrateOnce(
         ]
       : [],
     llmCalls,
+    upcomingPoi: undefined,
+    teaserText: undefined,
     message: spoken ? focus?.title ?? t('appName') : t('ttsMissing'),
   });
 }
