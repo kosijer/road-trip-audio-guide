@@ -190,6 +190,87 @@ export function PersonIcon({ color, size = 22 }: IconProps) {
   );
 }
 
+/** Speaker cone + optional sound arcs (or mute slash). */
+export function SpeakerIcon({
+  color,
+  size = 22,
+  muted = false,
+}: IconProps & { muted?: boolean }) {
+  const stroke = Math.max(1.6, size * 0.11);
+  const cone = size * 0.38;
+  const bodyW = size * 0.22;
+  const bodyH = size * 0.28;
+  return (
+    <View style={[styles.box, { width: size, height: size }]}>
+      {/* Cone pointing right */}
+      <View
+        style={{
+          position: 'absolute',
+          left: size * 0.08,
+          width: 0,
+          height: 0,
+          borderTopWidth: cone * 0.72,
+          borderBottomWidth: cone * 0.72,
+          borderLeftWidth: cone,
+          borderTopColor: 'transparent',
+          borderBottomColor: 'transparent',
+          borderLeftColor: color,
+        }}
+      />
+      {/* Speaker body */}
+      <View
+        style={{
+          position: 'absolute',
+          left: size * 0.06,
+          width: bodyW,
+          height: bodyH,
+          borderRadius: 2,
+          backgroundColor: color,
+        }}
+      />
+      {!muted ? (
+        <>
+          <View
+            style={{
+              position: 'absolute',
+              left: size * 0.48,
+              width: size * 0.22,
+              height: size * 0.22,
+              borderRadius: size,
+              borderWidth: stroke,
+              borderColor: color,
+              borderLeftWidth: 0,
+            }}
+          />
+          <View
+            style={{
+              position: 'absolute',
+              left: size * 0.52,
+              width: size * 0.36,
+              height: size * 0.36,
+              borderRadius: size,
+              borderWidth: stroke,
+              borderColor: color,
+              borderLeftWidth: 0,
+            }}
+          />
+        </>
+      ) : (
+        <View
+          style={{
+            position: 'absolute',
+            width: size * 0.85,
+            height: stroke,
+            borderRadius: stroke,
+            backgroundColor: color,
+            transform: [{ rotate: '-40deg' }],
+          }}
+        />
+      )}
+    </View>
+  );
+}
+
 /** Category include/exclude — check when active, X when muted. */
 export function MuteIcon({
   color,

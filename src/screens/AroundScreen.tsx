@@ -1,15 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
-import {
-  Linking,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { LastStoryCard } from '../components/LastStoryCard';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { MoodRadios } from '../components/MoodRadios';
 import { NearbyMap } from '../components/NearbyMap';
+import { PlaceAccordionList } from '../components/PlaceAccordionList';
+import { PlaceStoryCard } from '../components/PlaceStoryCard';
 import { useI18n } from '../hooks/useI18n';
 import { config } from '../config';
 import {
@@ -17,13 +11,13 @@ import {
   setSessionMood,
   type SessionMood,
 } from '../preferences';
-import { getCurrentLocation } from '../services/location';
+import { getFreshLocation } from '../services/location';
 import {
   suggestNearbyPlaces,
   type NearbySuggestion,
 } from '../services/suggestNearby';
 import { walkingNow } from '../services/tripEngine';
-import { colors, sharedStyles, space, type } from '../theme';
+import { colors, sharedStyles } from '../theme';
 import type { GeoPoint, TripStatus } from '../types';
 
 type Props = {
@@ -34,6 +28,12 @@ type Props = {
   setBusy: (busy: boolean) => void;
   onNext: () => void;
 };
+
+function formatDistanceM(distanceM: number): string {
+  return distanceM >= 1000
+    ? `${(distanceM / 1000).toFixed(1)} km`
+    : `${Math.round(distanceM)} m`;
+}
 
 export function AroundScreen({
   status,
@@ -47,6 +47,7 @@ export function AroundScreen({
   const [mapCenter, setMapCenter] = useState<GeoPoint | null>(
     status.lastLocation ?? null,
   );
+  const locating = mapCenter == null;
   const [mood, setMood] = useState<SessionMood>(null);
   const [moreBusy, setMoreBusy] = useState(false);
   const [more, setMore] = useState<NearbySuggestion[] | null>(null);
@@ -58,10 +59,9 @@ export function AroundScreen({
   useEffect(() => {
     if (status.lastLocation) {
       setMapCenter(status.lastLocation);
-      return;
     }
     let cancelled = false;
-    void getCurrentLocation()
+    void getFreshLocation()
       .then(here => {
         if (!cancelled) {
           setMapCenter(here);
@@ -74,6 +74,8 @@ export function AroundScreen({
       cancelled = true;
     };
   }, [status.lastLocation]);
+
+  const focus = status.lastPoiMarkers?.[0];
 
   const onWalk = useCallback(async () => {
     setBusy(true);
@@ -95,7 +97,7 @@ export function AroundScreen({
     }
     setMoreBusy(true);
     try {
-      const here = status.lastLocation ?? (await getCurrentLocation());
+      const here = await getFreshLocation();
       setMapCenter(here);
       const excludeIds = status.lastPoiIds ?? [];
       const list = await suggestNearbyPlaces(here, {
@@ -117,14 +119,39 @@ export function AroundScreen({
     }
   }, [busy, moreBusy, setStatus, status, t]);
 
-  const openMaps = useCallback(async (item: NearbySuggestion) => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${item.latitude},${item.longitude}`;
-    try {
-      await Linking.openURL(url);
-    } catch (error) {
-      console.warn('maps open failed', error);
+  const moreItems = useMemo(
+    () =>
+      (more ?? []).map(item => ({
+        id: item.id,
+        title: item.title,
+        distanceLabel: `${formatDistanceM(item.distanceM)}${
+          item.category ? ` · ${item.category}` : ''
+        }`,
+        summary: item.summary,
+        latitude: item.latitude,
+        longitude: item.longitude,
+      })),
+    [more],
+  );
+
+  const mapMarkers = useMemo(() => {
+    const byId = new Map<
+      string,
+      { id: string; title: string; latitude: number; longitude: number }
+    >();
+    for (const m of status.lastPoiMarkers ?? []) {
+      byId.set(m.id, m);
     }
-  }, []);
+    for (const item of more ?? []) {
+      byId.set(item.id, {
+        id: item.id,
+        title: item.title,
+        latitude: item.latitude,
+        longitude: item.longitude,
+      });
+    }
+    return [...byId.values()];
+  }, [more, status.lastPoiMarkers]);
 
   return (
     <ScrollView
@@ -136,7 +163,7 @@ export function AroundScreen({
       <View style={sharedStyles.mapCard}>
         <NearbyMap
           center={mapCenter}
-          markers={status.lastPoiMarkers}
+          markers={mapMarkers}
           radiusM={config.walkingPoiRadiusM}
         />
       </View>
@@ -155,19 +182,22 @@ export function AroundScreen({
         style={[
           sharedStyles.primary,
           sharedStyles.go,
-          (busy || moreBusy) && sharedStyles.disabled,
+          (busy || moreBusy || locating) && sharedStyles.disabled,
         ]}
         onPress={onWalk}
-        disabled={busy || moreBusy}>
+        disabled={busy || moreBusy || locating}>
         <Text style={sharedStyles.primaryText}>
-          {busy ? t('walkingBusy') : t('walking')}
+          {busy ? t('walkingBusy') : locating ? t('locating') : t('walking')}
         </Text>
       </Pressable>
 
-      <LastStoryCard
+      <PlaceStoryCard
         title={status.lastPoiTitle}
         narration={status.lastNarration}
         exposureId={status.lastExposureId}
+        latitude={focus?.latitude}
+        longitude={focus?.longitude}
+        mapsMode="walking"
         busy={busy}
         onNext={onNext}
       />
@@ -177,64 +207,18 @@ export function AroundScreen({
         android_ripple={{ color: colors.ripple }}
         style={[
           sharedStyles.secondary,
-          (busy || moreBusy) && sharedStyles.disabled,
+          (busy || moreBusy || locating) && sharedStyles.disabled,
         ]}
         onPress={() => {
           void onMore();
         }}
-        disabled={busy || moreBusy}>
+        disabled={busy || moreBusy || locating}>
         <Text style={sharedStyles.secondaryText}>
           {moreBusy ? t('aroundMoreBusy') : t('aroundMore')}
         </Text>
       </Pressable>
 
-      {more && more.length > 0 ? (
-        <View style={sharedStyles.sectionCard}>
-          {more.map(item => (
-            <View key={item.id} style={styles.moreRow}>
-              <View style={styles.moreText}>
-                <Text style={sharedStyles.storyTitle}>{item.title}</Text>
-                <Text style={sharedStyles.hint}>
-                  {item.distanceM >= 1000
-                    ? `${(item.distanceM / 1000).toFixed(1)} km`
-                    : `${Math.round(item.distanceM)} m`}
-                  {item.category ? ` · ${item.category}` : ''}
-                </Text>
-              </View>
-              <Pressable
-                accessibilityRole="link"
-                android_ripple={{ color: colors.ripple }}
-                style={styles.mapsBtn}
-                onPress={() => {
-                  void openMaps(item);
-                }}>
-                <Text style={styles.mapsBtnText}>{t('aroundMoreOpenMaps')}</Text>
-              </Pressable>
-            </View>
-          ))}
-        </View>
-      ) : null}
+      {moreItems.length > 0 ? <PlaceAccordionList items={moreItems} /> : null}
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  moreRow: {
-    gap: space.sm,
-    paddingVertical: space.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.borderSoft,
-  },
-  moreText: {
-    gap: 2,
-  },
-  mapsBtn: {
-    alignSelf: 'flex-start',
-    paddingVertical: space.xs,
-  },
-  mapsBtnText: {
-    ...type.caption,
-    color: colors.accent,
-    fontWeight: '700',
-  },
-});

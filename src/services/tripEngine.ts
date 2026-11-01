@@ -216,10 +216,11 @@ export async function drivingTick(): Promise<void> {
     }
     const { moving, sample } = pushMotionSample(location);
     const currentCell = cellId(sample);
+    // Motion state is shown on Drive UI — do not put it in `message`
+    // (that feeds the global toast and flashes on Plan).
     await patch({
       lastLocation: sample,
       moving,
-      message: moving ? t('moving') : t('stationary'),
     });
     if (!moving) {
       return;
@@ -346,15 +347,32 @@ async function narrateOnce(
     if (weather?.caveat) {
       extras.push(weather.caveat);
     }
+    candidates = candidates.map(poi => ({
+      ...poi,
+      weatherCaveat:
+        poi.isOutdoor && weather?.caveat ? weather.caveat : poi.weatherCaveat,
+    }));
+  }
+
+  // Hours for both walk & drive — skip closed indoor (museum at night).
+  {
     const withHours: Poi[] = [];
-    for (const poi of candidates.slice(0, 6)) {
+    for (const poi of candidates.slice(0, 8)) {
       const hours = await lookupOpeningHours(poi);
-      const next = applyHoursPolicy({
-        ...poi,
-        hours: hours ?? poi.hours,
-        weatherCaveat:
-          poi.isOutdoor && weather?.caveat ? weather.caveat : poi.weatherCaveat,
-      });
+      let primary;
+      try {
+        const { getOrClassifyPoi } = await import('../preferences');
+        primary = (await getOrClassifyPoi(poi)).primaryCategory;
+      } catch {
+        primary = undefined;
+      }
+      const next = applyHoursPolicy(
+        {
+          ...poi,
+          hours: hours ?? poi.hours,
+        },
+        { primaryCategory: primary },
+      );
       if (next) {
         withHours.push(next);
       }

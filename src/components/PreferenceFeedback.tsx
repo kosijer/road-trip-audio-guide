@@ -8,6 +8,8 @@ type Props = {
   busy?: boolean;
   onLiked: () => void;
   onNotInterested: () => void;
+  /** Full buttons (story card) vs subtle text links (accordion). */
+  variant?: 'buttons' | 'links';
 };
 
 export function PreferenceFeedback({
@@ -15,8 +17,50 @@ export function PreferenceFeedback({
   busy,
   onLiked,
   onNotInterested,
+  variant = 'buttons',
 }: Props) {
   const { t } = useI18n();
+
+  if (variant === 'links') {
+    return (
+      <View style={styles.linkRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('prefLiked')}
+          accessibilityState={{ selected: outcome === 'liked' }}
+          hitSlop={8}
+          disabled={busy}
+          onPress={onLiked}>
+          <Text
+            style={[
+              styles.link,
+              outcome === 'liked' && styles.linkOn,
+              busy && styles.linkDisabled,
+            ]}>
+            {t('prefLiked')}
+          </Text>
+        </Pressable>
+        <Text style={styles.linkSep}>·</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('prefNotInterested')}
+          accessibilityState={{ selected: outcome === 'not_interested' }}
+          hitSlop={8}
+          disabled={busy}
+          onPress={onNotInterested}>
+          <Text
+            style={[
+              styles.link,
+              outcome === 'not_interested' && styles.linkOn,
+              busy && styles.linkDisabled,
+            ]}>
+            {t('prefNotInterested')}
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.wrap}>
       <Text style={styles.label}>{t('prefTastePrompt')}</Text>
@@ -105,5 +149,30 @@ const styles = StyleSheet.create({
   },
   btnTextOn: {
     color: colors.accent,
+  },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: space.xs,
+    marginTop: space.sm,
+  },
+  link: {
+    ...type.caption,
+    color: colors.dim,
+    textDecorationLine: 'underline',
+    fontWeight: '500',
+  },
+  linkOn: {
+    color: colors.accent,
+    fontWeight: '700',
+    textDecorationLine: 'none',
+  },
+  linkDisabled: {
+    opacity: 0.45,
+  },
+  linkSep: {
+    ...type.caption,
+    color: colors.dim,
   },
 });

@@ -2,9 +2,15 @@ import { DeviceEventEmitter } from 'react-native';
 import Tts from 'react-native-tts';
 import type { AppLanguage } from '../i18n/types';
 import { getNarrationLanguage } from '../i18n';
-import { getSpeechRate, saveSpeechRate } from './store';
+import {
+  getSpeechMuted,
+  getSpeechRate,
+  saveSpeechMuted,
+  saveSpeechRate,
+} from './store';
 
 export const TTS_EVENT = 'rtag-tts';
+export const MUTE_EVENT = 'rtag-tts-mute';
 
 export const SPEECH_RATE_MIN = 0.5;
 export const SPEECH_RATE_MAX = 1.5;
@@ -18,6 +24,7 @@ const queue: QueueItem[] = [];
 let listenersAttached = false;
 let currentRate = 1.0;
 let currentLanguage: AppLanguage = 'en';
+let speechMuted = false;
 
 const TTS_LANGS: Record<AppLanguage, string[]> = {
   en: ['en-US', 'en-GB', 'en_US', 'en'],
@@ -57,6 +64,7 @@ async function ensureReady(): Promise<boolean> {
     currentLanguage = getNarrationLanguage();
     await applyTtsLanguage(currentLanguage);
     currentRate = await getSpeechRate();
+    speechMuted = await getSpeechMuted();
     await Tts.setDefaultRate(currentRate, true);
     ready = true;
     return true;
@@ -131,6 +139,10 @@ export async function speak(text: string): Promise<boolean> {
   if (!ok || !text.trim()) {
     return false;
   }
+  // Muted: keep text/history flow, skip audible TTS (bus / silent reading).
+  if (speechMuted) {
+    return true;
+  }
   const desired = getNarrationLanguage();
   if (desired !== currentLanguage) {
     await applyTtsLanguage(desired);
@@ -154,6 +166,19 @@ export async function stopSpeaking(): Promise<void> {
   setTimeout(() => {
     ignoreStaleEvents = false;
   }, 600);
+}
+
+export function isSpeechMuted(): boolean {
+  return speechMuted;
+}
+
+export async function setSpeechMuted(muted: boolean): Promise<boolean> {
+  speechMuted = await saveSpeechMuted(muted);
+  DeviceEventEmitter.emit(MUTE_EVENT, { muted: speechMuted });
+  if (speechMuted) {
+    await stopSpeaking();
+  }
+  return speechMuted;
 }
 
 export function isSpeaking(): boolean {

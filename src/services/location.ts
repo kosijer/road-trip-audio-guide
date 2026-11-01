@@ -34,6 +34,11 @@ export type FakeLocationId = keyof typeof FAKE_LOCATIONS;
 
 let locationOverride: (GeoPoint & { label: string }) | null = null;
 
+/** Shared across tabs so Drive doesn't wait again after Around. */
+const FRESH_TTL_MS = 120_000;
+let cachedFresh: LocationSample | null = null;
+let freshInflight: Promise<LocationSample> | null = null;
+
 export function getLocationOverride(): (GeoPoint & { label: string }) | null {
   return locationOverride;
 }
@@ -51,6 +56,7 @@ export function setLocationOverride(
     latitude: spot.latitude,
     longitude: spot.longitude,
   };
+  cachedFresh = overrideSample();
   return locationOverride;
 }
 
@@ -164,6 +170,21 @@ function overrideSample(): LocationSample {
   };
 }
 
+function rememberFresh(sample: LocationSample): LocationSample {
+  cachedFresh = sample;
+  return sample;
+}
+
+function cacheStillGood(): LocationSample | null {
+  if (!cachedFresh) {
+    return null;
+  }
+  if (Date.now() - cachedFresh.timestamp > FRESH_TTL_MS) {
+    return null;
+  }
+  return cachedFresh;
+}
+
 /** Real GPS only — used for weather so debug POI presets don't invent local rain. */
 export async function getRealLocation(): Promise<LocationSample> {
   return readDeviceLocation();
@@ -173,7 +194,65 @@ export async function getCurrentLocation(): Promise<LocationSample> {
   if (locationOverride) {
     return overrideSample();
   }
-  return readDeviceLocation();
+  const cached = cacheStillGood();
+  if (cached) {
+    return cached;
+  }
+  return rememberFresh(await readDeviceLocation());
+}
+
+/**
+ * Shared “you are here” fix for maps / Plan origin.
+ * Reuses an in-flight request and a short TTL so tabs don’t each wait ~10s.
+ */
+export async function getFreshLocation(): Promise<LocationSample> {
+  if (locationOverride) {
+    return overrideSample();
+  }
+  const cached = cacheStillGood();
+  if (cached) {
+    return cached;
+  }
+  if (freshInflight) {
+    return freshInflight;
+  }
+  freshInflight = (async () => {
+    // Fast path: recent network/cell fix (up to 30s old), then GPS refine.
+    try {
+      return rememberFresh(await readPosition(false, 5_000, 30_000));
+    } catch {
+      // continue
+    }
+    try {
+      return rememberFresh(await readPosition(true, 12_000, 5_000));
+    } catch {
+      return rememberFresh(await readDeviceLocation());
+    }
+  })();
+  try {
+    return await freshInflight;
+  } finally {
+    freshInflight = null;
+  }
+}
+
+/** Sync peek for UI that already warmed location. */
+export function peekFreshLocation(): LocationSample | null {
+  if (locationOverride) {
+    return overrideSample();
+  }
+  return cacheStillGood();
+}
+
+/** Kick off permission + first fix during app bootstrap. */
+export async function warmFreshLocation(): Promise<LocationSample | null> {
+  try {
+    await requestLocationPermission();
+    return await getFreshLocation();
+  } catch (error) {
+    console.warn('warmFreshLocation failed', error);
+    return null;
+  }
 }
 
 /** High-accuracy, short-lived fix for Start Trip motion detection. */
@@ -181,5 +260,6 @@ export async function getTripLocation(): Promise<LocationSample> {
   if (locationOverride) {
     return overrideSample();
   }
-  return readTripDeviceLocation();
+  const sample = await readTripDeviceLocation();
+  return rememberFresh(sample);
 }

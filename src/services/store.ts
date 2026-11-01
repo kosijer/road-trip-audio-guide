@@ -90,6 +90,7 @@ const KEY = {
   prefetchBatch: 'rtag:prefetchBatch',
   prefetchSampleTarget: 'rtag:prefetchSampleTarget',
   speedThresholdKmh: 'rtag:speedThresholdKmh',
+  speechMuted: 'rtag:speechMuted',
 };
 
 export const PREFETCH_PLACE_DEFAULT: PrefetchPlaceTarget = 12;
@@ -312,6 +313,16 @@ export async function getSpeechRate(): Promise<number> {
     return migrated;
   }
   return SPEECH_RATE_DEFAULT;
+}
+
+export async function getSpeechMuted(): Promise<boolean> {
+  const raw = await AsyncStorage.getItem(KEY.speechMuted);
+  return raw === '1' || raw === 'true';
+}
+
+export async function saveSpeechMuted(muted: boolean): Promise<boolean> {
+  await AsyncStorage.setItem(KEY.speechMuted, muted ? '1' : '0');
+  return muted;
 }
 
 export async function getSpeedThresholdKmh(): Promise<number> {
@@ -558,17 +569,26 @@ export function isTransientStatusMessage(message: string): boolean {
     m.includes('preuzimam') ||
     m.includes('looking for interesting') ||
     m.includes('looking for the next') ||
-    m.includes('tražim')
+    m.includes('tražim') ||
+    m === 'moving' ||
+    m === 'stopped / slow traffic' ||
+    m === 'u pokretu' ||
+    m === 'stajanje / spor saobraćaj'
   );
 }
 
+/**
+ * Cold start: drop ephemeral session UI (latest place, map pins, stale GPS,
+ * route prefetch). Preferences / history / mute settings stay.
+ */
+export async function resetSessionOnLaunch(): Promise<TripStatus> {
+  await clearPrefetchBatch();
+  const next = emptyStatus();
+  await AsyncStorage.setItem(KEY.status, JSON.stringify(next));
+  return next;
+}
+
+/** @deprecated use resetSessionOnLaunch — kept for older call sites/tests. */
 export async function sanitizeStatusOnLaunch(): Promise<TripStatus> {
-  const current = await getStatus();
-  if (!isTransientStatusMessage(current.message)) {
-    return current;
-  }
-  const message = current.tripActive
-    ? current.lastPoiTitle || ''
-    : '';
-  return setStatus({ message });
+  return resetSessionOnLaunch();
 }

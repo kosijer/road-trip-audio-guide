@@ -74,6 +74,8 @@ export type PrefetchBatch = {
     title: string;
     latitude: number;
     longitude: number;
+    summary?: string;
+    category?: string;
   }>;
   pois: Array<{
     id: string;

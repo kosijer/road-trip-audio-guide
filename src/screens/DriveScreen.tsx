@@ -1,14 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Linking,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { MoodRadios } from '../components/MoodRadios';
 import { NearbyMap } from '../components/NearbyMap';
+import { PlaceStoryCard } from '../components/PlaceStoryCard';
 import { useI18n } from '../hooks/useI18n';
 import { haversineM } from '../geo';
 import { config } from '../config';
@@ -17,7 +11,7 @@ import {
   setSessionMood,
   type SessionMood,
 } from '../preferences';
-import { getCurrentLocation } from '../services/location';
+import { getFreshLocation } from '../services/location';
 import { prefetchBatchUsableForDrive } from '../services/prefetch';
 import { getPrefetchBatch } from '../services/store';
 import { endTrip, startTrip } from '../services/tripEngine';
@@ -88,6 +82,7 @@ export function DriveScreen({
   const [mapCenter, setMapCenter] = useState<GeoPoint | null>(
     status.lastLocation ?? null,
   );
+  const locating = mapCenter == null;
   const [batch, setBatch] = useState<PrefetchBatch | null>(null);
   const [mood, setMood] = useState<SessionMood>(null);
 
@@ -104,10 +99,9 @@ export function DriveScreen({
   useEffect(() => {
     if (status.lastLocation) {
       setMapCenter(status.lastLocation);
-      return;
     }
     let cancelled = false;
-    void getCurrentLocation()
+    void getFreshLocation()
       .then(here => {
         if (!cancelled) {
           setMapCenter(here);
@@ -173,17 +167,15 @@ export function DriveScreen({
     }
   }, [setBusy, setStatus, status.tripActive, t]);
 
-  const onDirections = useCallback(async () => {
-    if (!suggested) {
-      return;
-    }
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${suggested.latitude},${suggested.longitude}`;
-    try {
-      await Linking.openURL(url);
-    } catch (error) {
-      console.warn('directions failed', error);
-    }
-  }, [suggested]);
+  const focus = status.lastPoiMarkers?.[0];
+  const showNarrated = Boolean(status.lastNarration && status.tripActive);
+  const distanceLabel = suggested?.distanceM != null
+    ? t('driveDistance', {
+        km: (suggested.distanceM / 1000).toFixed(
+          suggested.distanceM >= 1000 ? 1 : 2,
+        ),
+      })
+    : undefined;
 
   return (
     <ScrollView
@@ -197,6 +189,7 @@ export function DriveScreen({
           center={mapCenter}
           markers={markers}
           radiusM={config.drivingPoiRadiusM}
+          showRadius={false}
         />
       </View>
       {status.tripActive ? (
@@ -222,38 +215,50 @@ export function DriveScreen({
         style={[
           sharedStyles.primary,
           status.tripActive ? sharedStyles.stop : sharedStyles.go,
-          busy && sharedStyles.disabled,
+          (busy || (!status.tripActive && locating)) && sharedStyles.disabled,
         ]}
         onPress={onToggleTrip}
-        disabled={busy}>
+        disabled={busy || (!status.tripActive && locating)}>
         <Text style={sharedStyles.primaryText}>
-          {status.tripActive ? t('endTrip') : t('startTrip')}
+          {status.tripActive
+            ? t('endTrip')
+            : locating
+              ? t('locating')
+              : t('startTrip')}
         </Text>
       </Pressable>
 
-      {suggested ? (
-        <View style={sharedStyles.sectionCard}>
-          <Text style={sharedStyles.sectionCardTitle}>{t('driveNextUp')}</Text>
-          <Text style={sharedStyles.storyTitle}>{suggested.title}</Text>
-          {suggested.distanceM != null ? (
-            <Text style={sharedStyles.hint}>
-              {t('driveDistance', {
-                km: (suggested.distanceM / 1000).toFixed(
-                  suggested.distanceM >= 1000 ? 1 : 2,
-                ),
-              })}
-            </Text>
-          ) : null}
-          <Pressable
-            accessibilityRole="link"
-            android_ripple={{ color: colors.ripple }}
-            style={sharedStyles.secondary}
-            onPress={() => {
-              void onDirections();
-            }}>
-            <Text style={sharedStyles.secondaryText}>{t('driveDirections')}</Text>
-          </Pressable>
-        </View>
+      {showNarrated ? (
+        <PlaceStoryCard
+          title={status.lastPoiTitle}
+          narration={status.lastNarration}
+          exposureId={status.lastExposureId}
+          latitude={focus?.latitude}
+          longitude={focus?.longitude}
+          mapsMode="driving"
+          distanceLabel={
+            focus && mapCenter
+              ? t('driveDistance', {
+                  km: (
+                    haversineM(mapCenter, {
+                      latitude: focus.latitude,
+                      longitude: focus.longitude,
+                    }) / 1000
+                  ).toFixed(1),
+                })
+              : undefined
+          }
+          busy={busy}
+        />
+      ) : suggested ? (
+        <PlaceStoryCard
+          title={suggested.title}
+          distanceLabel={distanceLabel}
+          latitude={suggested.latitude}
+          longitude={suggested.longitude}
+          mapsMode={batch?.mode === 'walking' ? 'walking' : 'driving'}
+          showRating={false}
+        />
       ) : (
         <Text style={sharedStyles.hint}>{t('driveNoSuggestion')}</Text>
       )}

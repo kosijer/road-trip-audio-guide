@@ -10,9 +10,20 @@ type Props = {
   lastPoiTitle?: string;
 };
 
+/** Drive motion lines — shown inline on Drive, never as a toast. */
+const MOTION_TOAST_BLOCKLIST = new Set([
+  'Moving',
+  'Stopped / slow traffic',
+  'U pokretu',
+  'Stajanje / spor saobraćaj',
+]);
+
 function isUsefulToast(message: string, lastPoiTitle?: string): boolean {
   const m = message.trim();
   if (!m || m === '—') {
+    return false;
+  }
+  if (MOTION_TOAST_BLOCKLIST.has(m)) {
     return false;
   }
   if (lastPoiTitle && m === lastPoiTitle.trim()) {

@@ -28,7 +28,7 @@ export const en: Record<StringKey, string> = {
   inspireEmpty: 'Not enough interesting places nearby for that budget.',
   inspireStops: '{count} stops',
   inspireOriginPlaceholder: 'Start (optional — empty = here)',
-  aroundMore: '5 more nearby',
+  aroundMore: 'More nearby',
   aroundMoreBusy: 'Finding more…',
   aroundMoreEmpty: 'No more places to suggest nearby right now.',
   aroundMoreOpenMaps: 'Open in Maps',
@@ -37,6 +37,13 @@ export const en: Record<StringKey, string> = {
   driveDistance: 'About {km} km away',
   driveNoSuggestion:
     'No nearby suggestion yet. Use Plan to prefetch a route, or start the trip to discover places.',
+  placeLatest: 'Latest place',
+  placeNearby: 'Nearby',
+  mapsOpen: 'Open in Maps',
+  mapsWalk: 'Open in Maps',
+  mapsDrive: 'Open in Maps',
+  speechMute: 'Mute narration',
+  speechUnmute: 'Unmute narration',
   speedThreshold: 'Trip speed threshold',
   speedThresholdValue: '{kmh} km/h',
   speedThresholdHint:
@@ -124,6 +131,7 @@ export const en: Record<StringKey, string> = {
   prefetchMapEmpty: 'No cached places to show on the map yet.',
   prefetchEmptyList: 'Run prefetch to fill the corridor cache.',
   prefetchTapExpand: 'Tap for full description',
+  prefetchNoSummary: 'No description cached for this stop.',
   prefetchClear: 'Clear route cache',
   historyClear: 'Clear history',
   historyClearConfirm: 'Clear all visited places and ratings?',
@@ -177,5 +185,6 @@ export const en: Record<StringKey, string> = {
   hoursClosedOutdoor: 'It is currently closed, but you can still see it from outside.',
   mapTitle: 'Nearby map',
   mapWaiting: 'Waiting for location to show the map…',
+  locating: 'Locating…',
   mapYou: 'You',
 };

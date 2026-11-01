@@ -12,8 +12,14 @@ import {
 import { Accordion } from '../components/Accordion';
 import { CorridorMap } from '../components/CorridorMap';
 import { SettingsIcon } from '../components/Icons';
+import { MapsLinks } from '../components/MapsLinks';
+import { PreferenceFeedback } from '../components/PreferenceFeedback';
 import { useI18n } from '../hooks/useI18n';
-import { getCurrentLocation } from '../services/location';
+import {
+  applyTasteForPoi,
+  type ExposureOutcome,
+} from '../preferences';
+import { getFreshLocation } from '../services/location';
 import {
   INSPIRE_BUDGET_MAX,
   INSPIRE_BUDGET_MIN,
@@ -32,6 +38,7 @@ import {
 import { colors, radius, sharedStyles, space, touchMin, type } from '../theme';
 import {
   PREFETCH_PLACE_OPTIONS,
+  type GeoPoint,
   type PrefetchBatch,
   type PrefetchPlaceTarget,
   type TripStatus,
@@ -71,9 +78,33 @@ export function PlanScreen({ status, setStatus, busy }: Props) {
   const [batch, setBatch] = useState<PrefetchBatch | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showPlaceSettings, setShowPlaceSettings] = useState(false);
+  const [userLocation, setUserLocation] = useState<GeoPoint | null>(
+    status.lastLocation ?? null,
+  );
+  const [tasteById, setTasteById] = useState<
+    Record<string, ExposureOutcome | undefined>
+  >({});
+  const [tasteBusyId, setTasteBusyId] = useState<string | null>(null);
 
   const working = inspiring || prefetching;
-  const blocked = busy || working;
+  const needHere =
+    planMode === 'loop' ? !inspireOrigin.trim() : !origin.trim();
+  const locating = needHere && userLocation == null;
+  const blocked = busy || working || locating;
+
+  const onTaste = useCallback(
+    async (poiId: string, next: 'liked' | 'not_interested') => {
+      setTasteBusyId(poiId);
+      try {
+        const mode = batch?.mode === 'walking' ? 'walking' : 'browse';
+        const saved = await applyTasteForPoi(poiId, next, mode);
+        setTasteById(prev => ({ ...prev, [poiId]: saved ?? undefined }));
+      } finally {
+        setTasteBusyId(null);
+      }
+    },
+    [batch?.mode],
+  );
 
   useEffect(() => {
     void (async () => {
@@ -87,6 +118,27 @@ export function PlanScreen({ status, setStatus, busy }: Props) {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    // Show last known immediately, then always refresh — stale trip
+    // samples can be hours old and misplace the “you” pin on the map.
+    if (status.lastLocation) {
+      setUserLocation(status.lastLocation);
+    }
+    let cancelled = false;
+    void getFreshLocation()
+      .then(here => {
+        if (!cancelled) {
+          setUserLocation(here);
+        }
+      })
+      .catch(() => {
+        // Map still works without a “you” pin.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [status.lastLocation]);
 
   const onPlaceTarget = useCallback(async (next: PrefetchPlaceTarget) => {
     setPlaceTarget(next);
@@ -131,8 +183,9 @@ export function PlanScreen({ status, setStatus, busy }: Props) {
           longitude: Number(coord[2]),
         };
       } else {
-        const here = await getCurrentLocation();
+        const here = await getFreshLocation();
         point = here;
+        setUserLocation(here);
         if (!trimmed) {
           label = `${here.latitude.toFixed(4)}, ${here.longitude.toFixed(4)}`;
         }
@@ -146,6 +199,7 @@ export function PlanScreen({ status, setStatus, busy }: Props) {
         onProgress: message => setInspireProgress(mapInspireProgress(message)),
       });
       setBatch(nextBatch);
+      setTasteById({});
       if (!inspireOrigin.trim()) {
         setInspireOrigin(label);
       }
@@ -193,7 +247,8 @@ export function PlanScreen({ status, setStatus, busy }: Props) {
     try {
       let from = origin.trim();
       if (!from) {
-        const here = await getCurrentLocation();
+        const here = await getFreshLocation();
+        setUserLocation(here);
         from = `${here.latitude},${here.longitude}`;
       }
       const { count, batch: nextBatch } = await runPrefetch(
@@ -202,6 +257,7 @@ export function PlanScreen({ status, setStatus, busy }: Props) {
         message => setPrefetchProgress(message),
       );
       setBatch(nextBatch);
+      setTasteById({});
       if (!origin.trim()) {
         setOrigin(from);
       }
@@ -231,6 +287,7 @@ export function PlanScreen({ status, setStatus, busy }: Props) {
     await clearPrefetchBatch();
     setBatch(null);
     setExpandedId(null);
+    setTasteById({});
     setStatus(prev => ({
       ...prev,
       prefetchCount: 0,
@@ -366,7 +423,9 @@ export function PlanScreen({ status, setStatus, busy }: Props) {
             <Text style={sharedStyles.primaryText} numberOfLines={2}>
               {inspiring
                 ? inspireProgress || t('inspireBusy')
-                : t('inspireSuggest')}
+                : locating
+                  ? t('locating')
+                  : t('inspireSuggest')}
             </Text>
           </Pressable>
         </View>
@@ -453,7 +512,9 @@ export function PlanScreen({ status, setStatus, busy }: Props) {
             <Text style={sharedStyles.secondaryText} numberOfLines={2}>
               {prefetching
                 ? prefetchProgress || t('prefetching')
-                : t('prefetch')}
+                : locating
+                  ? t('locating')
+                  : t('prefetch')}
             </Text>
           </Pressable>
         </View>
@@ -483,7 +544,11 @@ export function PlanScreen({ status, setStatus, busy }: Props) {
               : t('prefetchListTitle', { count: batch!.pois.length })}
           </Text>
           <View style={sharedStyles.mapCard}>
-            <CorridorMap markers={markers} height={210} />
+            <CorridorMap
+              markers={markers}
+              userLocation={userLocation}
+              height={210}
+            />
           </View>
           {(batch!.kind === 'loop' && batch!.stops
             ? batch!.stops.map(s => {
@@ -491,13 +556,24 @@ export function PlanScreen({ status, setStatus, busy }: Props) {
                 return {
                   id: s.id,
                   title: s.title,
-                  category: poi?.category,
-                  summary: poi?.summary ?? '',
+                  category: s.category ?? poi?.category,
+                  summary: (s.summary || poi?.summary || '').trim(),
+                  latitude: s.latitude,
+                  longitude: s.longitude,
                 };
               })
-            : batch!.pois
+            : batch!.pois.map(poi => ({
+                id: poi.id,
+                title: poi.title,
+                category: poi.category,
+                summary: (poi.summary || '').trim(),
+                latitude: poi.latitude,
+                longitude: poi.longitude,
+              }))
           ).map(poi => {
             const open = expandedId === poi.id;
+            const mapsMode =
+              batch!.mode === 'walking' ? 'walking' : 'driving';
             return (
               <Accordion
                 key={poi.id}
@@ -509,7 +585,25 @@ export function PlanScreen({ status, setStatus, busy }: Props) {
                 }>
                 {poi.summary ? (
                   <Text style={styles.poiSummary}>{poi.summary}</Text>
-                ) : null}
+                ) : (
+                  <Text style={styles.poiEmpty}>{t('prefetchNoSummary')}</Text>
+                )}
+                <PreferenceFeedback
+                  variant="links"
+                  outcome={tasteById[poi.id]}
+                  busy={tasteBusyId === poi.id}
+                  onLiked={() => {
+                    void onTaste(poi.id, 'liked');
+                  }}
+                  onNotInterested={() => {
+                    void onTaste(poi.id, 'not_interested');
+                  }}
+                />
+                <MapsLinks
+                  latitude={poi.latitude}
+                  longitude={poi.longitude}
+                  mode={mapsMode}
+                />
               </Accordion>
             );
           })}
@@ -606,6 +700,11 @@ const styles = StyleSheet.create({
     ...type.caption,
     color: colors.accent,
     fontWeight: '700',
+  },
+  poiEmpty: {
+    ...type.caption,
+    color: colors.dim,
+    fontStyle: 'italic',
   },
   poiSummary: {
     ...type.body,

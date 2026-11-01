@@ -28,8 +28,9 @@ export async function searchOverpass(
 (
   nwr["historic"](around:${Math.round(radiusM)},${center.latitude},${center.longitude});
   nwr["tourism"~"attraction|museum|viewpoint|artwork|archaeological_site"](around:${Math.round(radiusM)},${center.latitude},${center.longitude});
+  nwr["amenity"~"pub|bar|biergarten|cafe|restaurant|nightclub"](around:${Math.round(radiusM)},${center.latitude},${center.longitude});
 );
-out center tags 35;`;
+out center tags 45;`;
   const body = `data=${encodeURIComponent(query)}`;
   let data: OverpassResponse | null = null;
   for (const endpoint of OVERPASS_ENDPOINTS) {
@@ -61,6 +62,7 @@ out center tags 35;`;
       const summary = [
         tags.historic && `historic=${tags.historic}`,
         tags.tourism && `tourism=${tags.tourism}`,
+        tags.amenity && `amenity=${tags.amenity}`,
         tags.description,
         tags.wikipedia,
       ]
@@ -73,7 +75,7 @@ out center tags 35;`;
         summary: summary || title,
         location,
         source: 'osm',
-        category: tags.historic || tags.tourism,
+        category: tags.historic || tags.tourism || tags.amenity,
         extractLength: (summary || title).length,
         distanceM: haversineM(center, location),
         wikidataId: tags.wikidata,

@@ -3,56 +3,83 @@ import { StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import { t } from '../i18n';
 import { colors, radius, sharedStyles, space } from '../theme';
+import type { GeoPoint } from '../types';
 import type { MapMarker } from './NearbyMap';
 
 type Props = {
   markers: MapMarker[];
+  /** Optional “you are here” pin (different color). */
+  userLocation?: GeoPoint | null;
   height?: number;
 };
 
-function regionForMarkers(markers: MapMarker[]): Region | null {
-  if (markers.length === 0) {
+const EDGE = { top: 36, right: 36, bottom: 36, left: 36 };
+
+function regionForPoints(points: GeoPoint[]): Region | null {
+  if (points.length === 0) {
     return null;
   }
-  let minLat = markers[0].latitude;
-  let maxLat = markers[0].latitude;
-  let minLon = markers[0].longitude;
-  let maxLon = markers[0].longitude;
-  for (const m of markers) {
-    minLat = Math.min(minLat, m.latitude);
-    maxLat = Math.max(maxLat, m.latitude);
-    minLon = Math.min(minLon, m.longitude);
-    maxLon = Math.max(maxLon, m.longitude);
+  if (points.length === 1) {
+    return {
+      latitude: points[0].latitude,
+      longitude: points[0].longitude,
+      latitudeDelta: 0.04,
+      longitudeDelta: 0.04,
+    };
   }
-  const latDelta = Math.max(0.04, (maxLat - minLat) * 1.35 || 0.08);
-  const lonDelta = Math.max(0.04, (maxLon - minLon) * 1.35 || 0.08);
+  let minLat = points[0].latitude;
+  let maxLat = points[0].latitude;
+  let minLon = points[0].longitude;
+  let maxLon = points[0].longitude;
+  for (const p of points) {
+    minLat = Math.min(minLat, p.latitude);
+    maxLat = Math.max(maxLat, p.latitude);
+    minLon = Math.min(minLon, p.longitude);
+    maxLon = Math.max(maxLon, p.longitude);
+  }
   return {
     latitude: (minLat + maxLat) / 2,
     longitude: (minLon + maxLon) / 2,
-    latitudeDelta: latDelta,
-    longitudeDelta: lonDelta,
+    latitudeDelta: Math.max(0.04, (maxLat - minLat) * 1.35 || 0.08),
+    longitudeDelta: Math.max(0.04, (maxLon - minLon) * 1.35 || 0.08),
   };
 }
 
-export function CorridorMap({ markers, height = 220 }: Props) {
+export function CorridorMap({
+  markers,
+  userLocation = null,
+  height = 220,
+}: Props) {
   const mapRef = useRef<MapView | null>(null);
-  const region = useMemo(() => regionForMarkers(markers), [markers]);
+
+  const fitPoints = useMemo((): GeoPoint[] => {
+    const points: GeoPoint[] = markers.map(m => ({
+      latitude: m.latitude,
+      longitude: m.longitude,
+    }));
+    if (userLocation) {
+      points.push(userLocation);
+    }
+    return points;
+  }, [markers, userLocation]);
+
+  const region = useMemo(() => regionForPoints(fitPoints), [fitPoints]);
 
   useEffect(() => {
-    if (!mapRef.current || markers.length === 0) {
+    if (!mapRef.current || fitPoints.length === 0) {
       return;
     }
-    mapRef.current.fitToCoordinates(
-      markers.map(m => ({
-        latitude: m.latitude,
-        longitude: m.longitude,
-      })),
-      {
-        edgePadding: { top: 36, right: 36, bottom: 36, left: 36 },
+    if (fitPoints.length >= 2) {
+      mapRef.current.fitToCoordinates(fitPoints, {
+        edgePadding: EDGE,
         animated: true,
-      },
-    );
-  }, [markers]);
+      });
+      return;
+    }
+    if (region) {
+      mapRef.current.animateToRegion(region, 350);
+    }
+  }, [fitPoints, region]);
 
   if (!region || markers.length === 0) {
     return (
@@ -73,6 +100,13 @@ export function CorridorMap({ markers, height = 220 }: Props) {
         showsMyLocationButton={false}
         showsCompass={false}
         toolbarEnabled={false}>
+        {userLocation ? (
+          <Marker
+            coordinate={userLocation}
+            title={t('mapYou')}
+            pinColor={colors.accent}
+          />
+        ) : null}
         {markers.map(marker => (
           <Marker
             key={marker.id}
@@ -81,7 +115,7 @@ export function CorridorMap({ markers, height = 220 }: Props) {
               longitude: marker.longitude,
             }}
             title={marker.title}
-            pinColor={colors.accent}
+            pinColor={colors.go}
           />
         ))}
       </MapView>

@@ -11,6 +11,7 @@ import {
 } from '../preferences';
 import type { GeoPoint, Poi, PrefetchBatch } from '../types';
 import { discoverPois, discoverPoisForPrefetch, rankPois } from './poi/discover';
+import { filterPoisForVisitNow } from './places';
 import { humanCategory } from './routePrefetch';
 import { savePois, savePrefetchBatch, setStatus } from './store';
 
@@ -179,11 +180,31 @@ async function rankForBrowse(pois: Poi[]): Promise<Poi[]> {
       ) {
         continue;
       }
+      // Museums/galleries are poor stop picks late unless hours say open
+      // (hours filter runs next — skip obvious late museums here).
+      if (
+        classification.primaryCategory === 'museums_galleries' &&
+        (context.daypart === 'evening' || context.daypart === 'night') &&
+        poi.hours?.openNow !== true
+      ) {
+        continue;
+      }
       const prior = await lastExposureForPoi(poi.id);
+      const late =
+        context.daypart === 'evening' || context.daypart === 'night';
+      // Nudge pubs / food up in the evening so loops aren’t only landmarks.
+      let baseInterest = pool.length - index;
+      if (
+        late &&
+        (classification.primaryCategory === 'nightlife_social' ||
+          classification.primaryCategory === 'local_culture_food')
+      ) {
+        baseInterest += 8;
+      }
       prefCandidates.push({
         id: poi.id,
         title: poi.title,
-        baseInterest: pool.length - index,
+        baseInterest,
         categories: classification.categories,
         primaryCategory: classification.primaryCategory,
         lastExposedAt: prior?.suggestedAt,
@@ -219,7 +240,12 @@ export async function runInspireLoop(input: {
   mode: InspireMode;
   budgetMin: number;
   onProgress?: (message: string) => void;
-}): Promise<{ count: number; batch: PrefetchBatch; stops: RankedStop[] }> {
+}): Promise<{
+  stopCount: number;
+  cacheCount: number;
+  batch: PrefetchBatch;
+  stops: RankedStop[];
+}> {
   const budgetMin = Math.min(
     INSPIRE_BUDGET_MAX,
     Math.max(INSPIRE_BUDGET_MIN, Math.round(input.budgetMin)),
@@ -243,7 +269,17 @@ export async function runInspireLoop(input: {
 
   input.onProgress?.('inspire_ranking');
   const rankedPois = await rankForBrowse(withDistance);
-  const stopCandidates = rankedPois.map(poiToStop);
+  // Drop indoor venues that are closed / likely closed (e.g. museum at 20:00).
+  // Outdoor landmarks that are “closed” may stay with a facade caveat.
+  const visitNow = await filterPoisForVisitNow(rankedPois, {
+    primaryCategoryOf: async poi => {
+      const c = await getOrClassifyPoi(poi);
+      return c.primaryCategory;
+    },
+    lookupCap: Math.max(10, wantStops * 4),
+  });
+  const stopPool = visitNow.length > 0 ? visitNow : rankedPois;
+  const stopCandidates = stopPool.map(poiToStop);
   const diverse = pickDiverseStops(stopCandidates, wantStops, minSep);
   if (diverse.length === 0) {
     throw new Error('inspire_empty');
@@ -305,6 +341,8 @@ export async function runInspireLoop(input: {
       title: s.title,
       latitude: s.latitude,
       longitude: s.longitude,
+      summary: s.summary,
+      category: s.category,
     })),
     pois: cached.slice(0, Math.max(12, stops.length * 4)).map(poi => ({
       id: poi.id,

@@ -80,7 +80,7 @@ function fromFreeText(title: string, summary: string, category?: string): Catego
     [/\b(bridge|skyscraper|tower)\b/, 'architecture'],
     [/\b(market|village|cuisine|craft)\b/, 'local_culture_food'],
     [/\b(industrial|railway|factory|modern)\b/, 'modern_landmarks'],
-    [/\b(bar|nightlife|club)\b/, 'nightlife_social'],
+    [/\b(pub|bar|nightlife|club|biergarten)\b/, 'nightlife_social'],
   ];
   for (const [re, id] of rules) {
     if (re.test(blob)) {

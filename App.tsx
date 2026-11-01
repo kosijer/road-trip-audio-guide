@@ -19,6 +19,7 @@ import {
   FAKE_LOCATIONS,
   getLocationOverride,
   setLocationOverride,
+  warmFreshLocation,
   type FakeLocationId,
 } from './src/services/location';
 import { PlaybackOverlay } from './src/components/PlaybackOverlay';
@@ -26,14 +27,21 @@ import { StatusToast } from './src/components/StatusToast';
 import {
   emptyStatus,
   getLanguageSettings,
+  getSpeechMuted,
   getStatus,
-  sanitizeStatusOnLaunch,
+  resetSessionOnLaunch,
 } from './src/services/store';
-import { narrateNext, STATUS_EVENT } from './src/services/tripEngine';
+import {
+  endTrip,
+  narrateNext,
+  STATUS_EVENT,
+} from './src/services/tripEngine';
 import {
   applyNarrationLanguage,
   getRate,
   isSpeaking,
+  MUTE_EVENT,
+  setSpeechMuted,
   stopSpeaking,
   TTS_EVENT,
 } from './src/services/tts';
@@ -61,15 +69,26 @@ function AppScreen() {
   const [busy, setBusy] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [speechRate, setSpeechRate] = useState(1);
+  const [speechMuted, setSpeechMutedState] = useState(false);
   const [fakeLocation, setFakeLocation] = useState<FakeLocationId | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     void (async () => {
-      const [nextStatus, languages, rate] = await Promise.all([
-        sanitizeStatusOnLaunch(),
+      // Soft-stop any prior trip keep-alive before wiping session state.
+      try {
+        const prior = await getStatus();
+        if (prior.tripActive) {
+          await endTrip();
+        }
+      } catch (error) {
+        console.warn('endTrip on launch failed', error);
+      }
+      const [nextStatus, languages, rate, muted] = await Promise.all([
+        resetSessionOnLaunch(),
         getLanguageSettings(),
         getRate(),
+        getSpeechMuted(),
       ]);
       try {
         const {
@@ -85,6 +104,7 @@ function AppScreen() {
       await applyNarrationLanguage(languages.narrationLanguage);
       setStatus(nextStatus);
       setSpeechRate(rate);
+      setSpeechMutedState(muted);
       const override = getLocationOverride();
       if (override) {
         const match = (Object.keys(FAKE_LOCATIONS) as FakeLocationId[]).find(
@@ -93,11 +113,23 @@ function AppScreen() {
         setFakeLocation(match ?? null);
       }
       setReady(true);
+      // Warm GPS once so Around → Drive share the same fix.
+      void warmFreshLocation().then(here => {
+        if (here) {
+          setStatus(prev => ({ ...prev, lastLocation: here }));
+        }
+      });
     })();
 
     const sub = DeviceEventEmitter.addListener(STATUS_EVENT, (next: TripStatus) => {
       setStatus(next);
     });
+    const muteSub = DeviceEventEmitter.addListener(
+      MUTE_EVENT,
+      (payload: { muted: boolean }) => {
+        setSpeechMutedState(payload.muted);
+      },
+    );
     const ttsSub = DeviceEventEmitter.addListener(
       TTS_EVENT,
       (payload: { speaking: boolean }) => {
@@ -110,10 +142,16 @@ function AppScreen() {
     }, 4000);
     return () => {
       sub.remove();
+      muteSub.remove();
       ttsSub.remove();
       clearInterval(poll);
     };
   }, []);
+
+  const onToggleMute = useCallback(async () => {
+    const next = await setSpeechMuted(!speechMuted);
+    setSpeechMutedState(next);
+  }, [speechMuted]);
 
   const onStopSpeech = useCallback(async () => {
     await stopSpeaking();
@@ -166,18 +204,12 @@ function AppScreen() {
   );
 
   const overlayOpen = overlay !== 'none';
-  const headerTitle =
+  const overlayTitle =
     overlay === 'settings'
       ? t('settingsTitle')
       : overlay === 'profile'
         ? t('profileTitle')
-        : tab === 'around'
-          ? t('tabAround')
-          : tab === 'drive'
-            ? t('tabDrive')
-            : tab === 'plan'
-              ? t('tabPlan')
-              : t('tabHistory');
+        : undefined;
 
   if (!ready) {
     return <View style={sharedStyles.root} />;
@@ -186,10 +218,14 @@ function AppScreen() {
   return (
     <View style={[sharedStyles.root, { paddingTop: insets.top }]}>
       <AppHeader
-        title={headerTitle}
+        title={overlayTitle}
         mode={overlayOpen ? 'overlay' : 'main'}
+        speechMuted={speechMuted}
         onPressMenu={() => setMenuOpen(true)}
         onPressBack={() => setOverlay('none')}
+        onToggleMute={() => {
+          void onToggleMute();
+        }}
       />
       <AccountMenu
         visible={menuOpen}

@@ -28,7 +28,7 @@ export const sr: Record<StringKey, string> = {
   inspireEmpty: 'Nema dovoljno zanimljivih mesta u okolini za taj budžet.',
   inspireStops: '{count} stajališta',
   inspireOriginPlaceholder: 'Start (opciono — prazno = ovde)',
-  aroundMore: 'Još 5 u kraju',
+  aroundMore: 'Još u okolini',
   aroundMoreBusy: 'Tražim još…',
   aroundMoreEmpty: 'Trenutno nema više predloga u okolini.',
   aroundMoreOpenMaps: 'Otvori u Maps',
@@ -37,6 +37,13 @@ export const sr: Record<StringKey, string> = {
   driveDistance: 'Oko {km} km udaljeno',
   driveNoSuggestion:
     'Još nema predloga. Koristite Plan da preuzmete rutu, ili pokrenite vožnju da otkrijete mesta.',
+  placeLatest: 'Poslednje mesto',
+  placeNearby: 'U okolini',
+  mapsOpen: 'Otvori u Maps',
+  mapsWalk: 'Otvori u Maps',
+  mapsDrive: 'Otvori u Maps',
+  speechMute: 'Utišaj priču',
+  speechUnmute: 'Uključi priču',
   speedThreshold: 'Prag brzine za vožnju',
   speedThresholdValue: '{kmh} km/h',
   speedThresholdHint:
@@ -124,6 +131,7 @@ export const sr: Record<StringKey, string> = {
   prefetchMapEmpty: 'Još nema keširanih mesta za mapu.',
   prefetchEmptyList: 'Pokrenite preuzimanje da popunite keš duž rute.',
   prefetchTapExpand: 'Dodirnite za ceo opis',
+  prefetchNoSummary: 'Nema sačuvanog opisa za ovo mesto.',
   prefetchClear: 'Obriši keš rute',
   historyClear: 'Obriši istoriju',
   historyClearConfirm: 'Obrisati sva posećena mesta i ocene?',
@@ -178,5 +186,6 @@ export const sr: Record<StringKey, string> = {
   hoursClosedOutdoor: 'Trenutno je zatvoreno, ali se može videti sa spolja.',
   mapTitle: 'Mapa okoline',
   mapWaiting: 'Čekam lokaciju da prikažem mapu…',
+  locating: 'Tražim lokaciju…',
   mapYou: 'Vi',
 };
