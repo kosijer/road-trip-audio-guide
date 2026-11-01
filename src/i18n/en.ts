@@ -18,7 +18,7 @@ export const en: Record<StringKey, string> = {
   speedThreshold: 'Trip speed threshold',
   speedThresholdValue: '{kmh} km/h',
   speedThresholdHint:
-    'Start Trip narrates only when you stay at or above this speed. Walk ~3–5, bike ~8–12, car ~25. Below 10 km/h we also check that you actually moved.',
+    'Start Trip narrates only when you stay at or above this speed. Walk ~3–5, bike ~8–12, car/train ~25. If GPS reports 0 km/h, we estimate speed from how far you moved between updates.',
   prefTastePrompt: 'This kind of place?',
   prefLiked: 'More like this',
   prefNotInterested: 'Not my thing',

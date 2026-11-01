@@ -1,9 +1,9 @@
 import { DeviceEventEmitter } from 'react-native';
 import { config } from '../config';
 import { t } from '../i18n';
-import type { GeoPoint, LocationSample, Poi, TripStatus } from '../types';
+import type { LocationSample, Poi, TripStatus } from '../types';
 import { cellId } from '../geo';
-import { evaluateMoving } from './motion';
+import { effectiveSpeedKmh, evaluateMoving } from './motion';
 import {
   emptyStatus,
   getLlmCalls,
@@ -21,6 +21,7 @@ import {
 import {
   getCurrentLocation,
   getRealLocation,
+  getTripLocation,
   requestLocationPermission,
 } from './location';
 import { generateNarration } from './narration';
@@ -70,8 +71,7 @@ function getBackgroundActions(): BackgroundActionsApi | null {
   return null;
 }
 
-const speedSamples: number[] = [];
-const locationSamples: GeoPoint[] = [];
+const motionSamples: LocationSample[] = [];
 let cachedSpeedThresholdKmh = config.drivingSpeedThresholdKmh;
 let tickTimer: ReturnType<typeof setInterval> | null = null;
 let ticking = false;
@@ -87,24 +87,27 @@ async function patch(partial: Partial<TripStatus>): Promise<TripStatus> {
   return status;
 }
 
-function pushMotionSample(location: LocationSample): boolean {
-  speedSamples.push(location.speedKmh);
-  locationSamples.push({
-    latitude: location.latitude,
-    longitude: location.longitude,
-  });
-  while (speedSamples.length > config.sustainedSpeedSamples) {
-    speedSamples.shift();
+/** Enrich sample with displacement-derived speed; return moving? + sample. */
+function pushMotionSample(location: LocationSample): {
+  moving: boolean;
+  sample: LocationSample;
+} {
+  const prev = motionSamples[motionSamples.length - 1];
+  const sample: LocationSample = {
+    ...location,
+    speedKmh: effectiveSpeedKmh(prev, location),
+  };
+  motionSamples.push(sample);
+  while (motionSamples.length > config.sustainedSpeedSamples) {
+    motionSamples.shift();
   }
-  while (locationSamples.length > config.sustainedSpeedSamples) {
-    locationSamples.shift();
-  }
-  return evaluateMoving({
-    speedSamples,
-    locations: locationSamples,
+  const moving = evaluateMoving({
+    speedSamples: motionSamples.map(s => s.speedKmh),
+    locations: motionSamples,
     thresholdKmh: cachedSpeedThresholdKmh,
     neededSamples: config.sustainedSpeedSamples,
   });
+  return { moving, sample };
 }
 
 async function keepAliveTask() {
@@ -149,8 +152,7 @@ export async function startTrip(): Promise<TripStatus> {
     return patch({ tripActive: false, message: t('permissionNeeded') });
   }
   await resetTripMemory();
-  speedSamples.length = 0;
-  locationSamples.length = 0;
+  motionSamples.length = 0;
   cachedSpeedThresholdKmh = await getSpeedThresholdKmh();
   await patch({
     ...emptyStatus(),
@@ -206,16 +208,16 @@ export async function drivingTick(): Promise<void> {
     }
     let location: LocationSample;
     try {
-      location = await getCurrentLocation();
+      location = await getTripLocation();
     } catch (error) {
       console.warn('location failed', error);
       await patch({ message: t('locationFailed') });
       return;
     }
-    const moving = pushMotionSample(location);
-    const currentCell = cellId(location);
+    const { moving, sample } = pushMotionSample(location);
+    const currentCell = cellId(sample);
     await patch({
-      lastLocation: location,
+      lastLocation: sample,
       moving,
       message: moving ? t('moving') : t('stationary'),
     });
@@ -229,7 +231,7 @@ export async function drivingTick(): Promise<void> {
     if (!dueByTime && !dueByCell) {
       return;
     }
-    await maybeNarrate(location, 'driving');
+    await maybeNarrate(sample, 'driving');
     await patch({ lastTriggerAt: Date.now(), lastCellId: currentCell });
   } finally {
     ticking = false;

@@ -1,9 +1,40 @@
 import { haversineM } from '../geo';
-import type { GeoPoint } from '../types';
+import type { GeoPoint, LocationSample } from '../types';
 import {
   SPEED_MIN_DISPLACEMENT_M,
   SPEED_MOVE_GATE_KMH,
 } from './store';
+
+/** Speed implied by how far we moved between two timed samples. */
+export function speedFromDisplacementKmh(
+  prev: LocationSample,
+  next: LocationSample,
+): number {
+  const dtMs = next.timestamp - prev.timestamp;
+  if (dtMs <= 0) {
+    return 0;
+  }
+  const meters = haversineM(prev, next);
+  return (meters / (dtMs / 1000)) * 3.6;
+}
+
+/**
+ * GPS often reports null/0 speed (trains, network location). Prefer
+ * displacement-derived speed when the device speed is missing or tiny.
+ */
+export function effectiveSpeedKmh(
+  prev: LocationSample | undefined,
+  next: LocationSample,
+): number {
+  if (!prev) {
+    return next.speedKmh;
+  }
+  const derived = speedFromDisplacementKmh(prev, next);
+  if (next.speedKmh < 1) {
+    return derived;
+  }
+  return Math.max(next.speedKmh, derived);
+}
 
 /**
  * Sustained speed across recent samples, plus a displacement gate when the

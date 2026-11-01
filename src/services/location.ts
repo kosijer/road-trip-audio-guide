@@ -136,6 +136,34 @@ async function readDeviceLocation(): Promise<LocationSample> {
   }
 }
 
+/**
+ * Fresh enough for trip motion. Stale network fixes (60s maxAge) freeze the
+ * map and report 0 km/h even on a moving train.
+ */
+async function readTripDeviceLocation(): Promise<LocationSample> {
+  try {
+    return await readPosition(true, 15_000, 2_000);
+  } catch (gpsErr) {
+    try {
+      return await readPosition(false, 10_000, 5_000);
+    } catch (networkErr) {
+      throw new Error(
+        `location_failed: ${String(gpsErr)}; ${String(networkErr)}`,
+      );
+    }
+  }
+}
+
+function overrideSample(): LocationSample {
+  return {
+    latitude: locationOverride!.latitude,
+    longitude: locationOverride!.longitude,
+    speedKmh: 0,
+    timestamp: Date.now(),
+    accuracyM: 5,
+  };
+}
+
 /** Real GPS only — used for weather so debug POI presets don't invent local rain. */
 export async function getRealLocation(): Promise<LocationSample> {
   return readDeviceLocation();
@@ -143,13 +171,15 @@ export async function getRealLocation(): Promise<LocationSample> {
 
 export async function getCurrentLocation(): Promise<LocationSample> {
   if (locationOverride) {
-    return {
-      latitude: locationOverride.latitude,
-      longitude: locationOverride.longitude,
-      speedKmh: 0,
-      timestamp: Date.now(),
-      accuracyM: 5,
-    };
+    return overrideSample();
   }
   return readDeviceLocation();
+}
+
+/** High-accuracy, short-lived fix for Start Trip motion detection. */
+export async function getTripLocation(): Promise<LocationSample> {
+  if (locationOverride) {
+    return overrideSample();
+  }
+  return readTripDeviceLocation();
 }

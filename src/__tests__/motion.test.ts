@@ -1,4 +1,9 @@
-import { evaluateMoving } from '../services/motion';
+import {
+  effectiveSpeedKmh,
+  evaluateMoving,
+  speedFromDisplacementKmh,
+} from '../services/motion';
+import type { LocationSample } from '../types';
 
 describe('evaluateMoving', () => {
   const base = { latitude: 51.5, longitude: -0.1 };
@@ -55,5 +60,36 @@ describe('evaluateMoving', () => {
         neededSamples: 3,
       }),
     ).toBe(true);
+  });
+});
+
+describe('effectiveSpeedKmh', () => {
+  function sample(
+    latitude: number,
+    longitude: number,
+    speedKmh: number,
+    timestamp: number,
+  ): LocationSample {
+    return { latitude, longitude, speedKmh, timestamp, accuracyM: 10 };
+  }
+
+  it('falls back to displacement when GPS speed is 0', () => {
+    const prev = sample(51.5, -0.1, 0, 1_000);
+    // ~250 m north in 15 s ≈ 60 km/h
+    const next = sample(51.5 + 0.00225, -0.1, 0, 16_000);
+    const derived = speedFromDisplacementKmh(prev, next);
+    expect(derived).toBeGreaterThan(50);
+    expect(effectiveSpeedKmh(prev, next)).toBeCloseTo(derived, 5);
+  });
+
+  it('keeps GPS speed when present and higher', () => {
+    const prev = sample(51.5, -0.1, 0, 1_000);
+    const next = sample(51.5 + 0.0001, -0.1, 80, 16_000);
+    expect(effectiveSpeedKmh(prev, next)).toBe(80);
+  });
+
+  it('returns device speed when there is no previous sample', () => {
+    const next = sample(51.5, -0.1, 12, 1_000);
+    expect(effectiveSpeedKmh(undefined, next)).toBe(12);
   });
 });

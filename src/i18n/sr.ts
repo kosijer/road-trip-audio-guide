@@ -18,7 +18,7 @@ export const sr: Record<StringKey, string> = {
   speedThreshold: 'Prag brzine za vožnju',
   speedThresholdValue: '{kmh} km/h',
   speedThresholdHint:
-    'Pokreni vožnju priča samo dok ste na ili iznad ove brzine. Peške ~3–5, bicikl ~8–12, auto ~25. Ispod 10 km/h proveravamo i da ste se stvarno pomerili.',
+    'Pokreni vožnju priča samo dok ste na ili iznad ove brzine. Peške ~3–5, bicikl ~8–12, auto/voz ~25. Ako GPS javlja 0 km/h, brzinu procenjujemo iz pomeraja između ažuriranja.',
   prefTastePrompt: 'Ova vrsta mesta?',
   prefLiked: 'Više ovakvih',
   prefNotInterested: 'Nije za mene',

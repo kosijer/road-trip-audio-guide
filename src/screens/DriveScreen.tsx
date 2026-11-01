@@ -108,18 +108,22 @@ export function DriveScreen({
   }, [status.lastLocation]);
 
   const suggested = useMemo((): SuggestedPlace | null => {
-    const focus = status.lastPoiMarkers?.[0];
-    if (focus) {
-      const distanceM = mapCenter
-        ? haversineM(mapCenter, {
-            latitude: focus.latitude,
-            longitude: focus.longitude,
-          })
-        : undefined;
-      return { ...focus, distanceM };
+    // Around also writes lastPoiMarkers — only trust them during an active
+    // trip (Drive narration). Idle Drive shows Plan corridor nearest.
+    if (status.tripActive) {
+      const focus = status.lastPoiMarkers?.[0];
+      if (focus) {
+        const distanceM = mapCenter
+          ? haversineM(mapCenter, {
+              latitude: focus.latitude,
+              longitude: focus.longitude,
+            })
+          : undefined;
+        return { ...focus, distanceM };
+      }
     }
     return nearestFromBatch(batch, mapCenter);
-  }, [batch, mapCenter, status.lastPoiMarkers]);
+  }, [batch, mapCenter, status.lastPoiMarkers, status.tripActive]);
 
   const markers = useMemo(
     () =>
