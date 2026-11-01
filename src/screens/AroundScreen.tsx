@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { LastStoryCard } from '../components/LastStoryCard';
-import { MoodChips } from '../components/MoodChips';
+import { MoodRadios } from '../components/MoodRadios';
 import { NearbyMap } from '../components/NearbyMap';
 import { useI18n } from '../hooks/useI18n';
 import { config } from '../config';
@@ -90,7 +90,7 @@ export function AroundScreen({
         />
       </View>
 
-      <MoodChips
+      <MoodRadios
         mood={mood}
         onChange={next => {
           setMood(next);

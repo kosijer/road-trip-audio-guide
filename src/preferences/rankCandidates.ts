@@ -80,7 +80,16 @@ export function rankCandidates(
     viable.push(c);
   }
 
-  const scored = viable.map(c => {
+  // Session mood is a soft shortlist: if any mood-matching places exist,
+  // only those compete. Boost alone cannot beat a high Clef/heuristic base.
+  const moodCats = new Set(moodCategories(session.mood));
+  const moodMatched =
+    moodCats.size > 0
+      ? viable.filter(c => moodCats.has(c.primaryCategory))
+      : [];
+  const scoringPool = moodMatched.length > 0 ? moodMatched : viable;
+
+  const scored = scoringPool.map(c => {
     const multiplier = preferenceMultiplierForCategories(
       profile.stats,
       c.categories,
@@ -99,6 +108,23 @@ export function rankCandidates(
     });
     return { c, finalScore, multiplier, moodBoost };
   });
+
+  // Keep excluded non-mood candidates visible in debug.
+  if (moodMatched.length > 0) {
+    for (const c of viable) {
+      if (moodCats.has(c.primaryCategory)) {
+        continue;
+      }
+      debugScores.push({
+        id: c.id,
+        baseInterest: c.baseInterest,
+        multiplier: 1,
+        moodBoost: 1,
+        finalScore: 0,
+        excluded: 'mood',
+      });
+    }
+  }
 
   scored.sort((a, b) => b.finalScore - a.finalScore);
 

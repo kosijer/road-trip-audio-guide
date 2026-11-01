@@ -81,6 +81,7 @@ export type StringKey =
   | 'prefetchProgress'
   | 'prefetchDone'
   | 'prefetchFailed'
+  | 'prefetchNetworkFailed'
   | 'prefetchSamples'
   | 'prefetchSamplesHint'
   | 'prefetchPlaces'

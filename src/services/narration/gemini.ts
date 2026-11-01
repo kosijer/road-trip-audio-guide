@@ -1,6 +1,7 @@
 import { config } from '../../config';
 import type { AppLanguage } from '../../i18n/types';
 import { getNarrationLanguage } from '../../i18n';
+import type { SessionMood } from '../../preferences';
 import { fetchJson, HttpError } from '../http';
 import type { Poi } from '../../types';
 
@@ -10,6 +11,7 @@ export interface LlmProvider {
     mode: 'driving' | 'walking';
     extras?: string[];
     language?: AppLanguage;
+    mood?: SessionMood;
   }): Promise<string>;
 }
 
@@ -36,9 +38,39 @@ function extractText(payload: {
 
 function languageInstructions(language: AppLanguage): string {
   if (language === 'sr') {
-    return 'Speak to the passenger in Serbian (Latin script preferred). No English in the spoken script.';
+    return 'Speak to the listener in Serbian (Latin script preferred). No English in the spoken script.';
   }
-  return 'Speak to the passenger in clear natural English.';
+  return 'Speak to the listener in clear natural English.';
+}
+
+function modeInstructions(mode: 'driving' | 'walking'): string {
+  if (mode === 'driving') {
+    return [
+      'Mode: driving — the listener is a car passenger.',
+      'Write one narration about a single most interesting place, 30-60 seconds spoken (roughly 80-140 words).',
+      'You may say we are driving past / coming up on the place.',
+      'Do not tell them to get out and walk unless the place is a clear stop.',
+    ].join('\n');
+  }
+  return [
+    'Mode: walking — the listener is on foot exploring nearby (Around mode).',
+    'Write one narration covering the 1-3 most interesting nearby places, 30-60 seconds spoken.',
+    'Speak as a walking guide: "as you walk", "nearby", "from here", "on foot".',
+    'Never mention driving, cars, passengers, "drive by", "driving past", or "from the road".',
+  ].join('\n');
+}
+
+function moodInstructions(mood: SessionMood | undefined): string {
+  if (mood === 'nature') {
+    return 'Session mood: nature — emphasize landscape, outdoors, parks, views, and atmosphere. Keep history brief unless it is essential.';
+  }
+  if (mood === 'history') {
+    return 'Session mood: history — lean into historical context, eras, and notable events.';
+  }
+  if (mood === 'surprise') {
+    return 'Session mood: surprise — keep the tone curious and unexpected; avoid the most obvious tourist spiel.';
+  }
+  return '';
 }
 
 function buildPrompt(
@@ -46,6 +78,7 @@ function buildPrompt(
   mode: 'driving' | 'walking',
   extras: string[] = [],
   language: AppLanguage = 'en',
+  mood?: SessionMood,
 ): string {
   const poiBlock = pois
     .map((poi, index) => {
@@ -68,14 +101,12 @@ function buildPrompt(
     })
     .join('\n\n');
 
-  const length =
-    mode === 'driving'
-      ? 'Write one narration about a single most interesting place, 30-60 seconds spoken (roughly 80-140 words).'
-      : 'Write one narration covering the 1-3 most interesting nearby places, 30-60 seconds spoken.';
+  const moodLine = moodInstructions(mood);
 
-  return `You are an in-car audio guide.
+  return `You are a mobile audio travel guide.
 ${languageInstructions(language)}
-${length}
+${modeInstructions(mode)}
+${moodLine}
 No markdown, no bullet points, no title.
 If a place is closed, say so clearly and do not recommend going inside.
 Only mention rain or weather if Additional context explicitly says so. Never invent weather, rain, or current conditions.
@@ -136,7 +167,7 @@ async function callGemini(model: string, prompt: string): Promise<string> {
 }
 
 export const geminiProvider: LlmProvider = {
-  async generateNarration({ pois, mode, extras, language }) {
+  async generateNarration({ pois, mode, extras, language, mood }) {
     if (!config.geminiApiKey) {
       throw new Error('missing_gemini_key');
     }
@@ -145,6 +176,7 @@ export const geminiProvider: LlmProvider = {
       mode,
       extras,
       language ?? getNarrationLanguage(),
+      mood,
     );
     const models = modelCandidates();
     let lastError: unknown;

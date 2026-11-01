@@ -89,6 +89,7 @@ export const en: Record<StringKey, string> = {
   prefetchProgress: 'Scanning route ({current}/{total})…',
   prefetchDone: 'Cached {count} places.',
   prefetchFailed: 'Route not found. Check the destination.',
+  prefetchNetworkFailed: 'No network — cannot download the route right now.',
   prefetchSamples: 'Places to keep',
   prefetchSamplesHint:
     'How many best places to keep for this route. More = slower download.',

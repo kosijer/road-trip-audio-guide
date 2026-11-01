@@ -89,6 +89,7 @@ export const sr: Record<StringKey, string> = {
   prefetchProgress: 'Skeniram rutu ({current}/{total})…',
   prefetchDone: 'Keširano {count} mesta.',
   prefetchFailed: 'Ruta nije pronađena. Proverite odredište.',
+  prefetchNetworkFailed: 'Nema mreže — ruta se trenutno ne može preuzeti.',
   prefetchSamples: 'Broj mesta',
   prefetchSamplesHint:
     'Koliko najboljih mesta da zadržimo za ovu rutu. Više = sporije preuzimanje.',

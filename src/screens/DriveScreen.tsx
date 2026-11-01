@@ -7,10 +7,16 @@ import {
   Text,
   View,
 } from 'react-native';
+import { MoodRadios } from '../components/MoodRadios';
 import { NearbyMap } from '../components/NearbyMap';
 import { useI18n } from '../hooks/useI18n';
 import { haversineM } from '../geo';
 import { config } from '../config';
+import {
+  getSessionState,
+  setSessionMood,
+  type SessionMood,
+} from '../preferences';
 import { getCurrentLocation } from '../services/location';
 import { getPrefetchBatch } from '../services/store';
 import { endTrip, startTrip } from '../services/tripEngine';
@@ -82,6 +88,11 @@ export function DriveScreen({
     status.lastLocation ?? null,
   );
   const [batch, setBatch] = useState<PrefetchBatch | null>(null);
+  const [mood, setMood] = useState<SessionMood>(null);
+
+  useEffect(() => {
+    void getSessionState().then(s => setMood(s.mood));
+  }, []);
 
   useEffect(() => {
     void getPrefetchBatch().then(setBatch);
@@ -178,21 +189,6 @@ export function DriveScreen({
         (speaking || busy) && sharedStyles.contentWithOverlay,
       ]}
       keyboardShouldPersistTaps="handled">
-      <Pressable
-        accessibilityRole="button"
-        android_ripple={{ color: colors.ripple }}
-        style={[
-          sharedStyles.primary,
-          status.tripActive ? sharedStyles.stop : sharedStyles.go,
-          busy && sharedStyles.disabled,
-        ]}
-        onPress={onToggleTrip}
-        disabled={busy}>
-        <Text style={sharedStyles.primaryText}>
-          {status.tripActive ? t('endTrip') : t('startTrip')}
-        </Text>
-      </Pressable>
-
       <View style={sharedStyles.mapCard}>
         <NearbyMap
           center={mapCenter}
@@ -208,6 +204,29 @@ export function DriveScreen({
             : ''}
         </Text>
       ) : null}
+
+      <MoodRadios
+        mood={mood}
+        onChange={next => {
+          setMood(next);
+          void setSessionMood(next);
+        }}
+      />
+
+      <Pressable
+        accessibilityRole="button"
+        android_ripple={{ color: colors.ripple }}
+        style={[
+          sharedStyles.primary,
+          status.tripActive ? sharedStyles.stop : sharedStyles.go,
+          busy && sharedStyles.disabled,
+        ]}
+        onPress={onToggleTrip}
+        disabled={busy}>
+        <Text style={sharedStyles.primaryText}>
+          {status.tripActive ? t('endTrip') : t('startTrip')}
+        </Text>
+      </Pressable>
 
       {suggested ? (
         <View style={sharedStyles.sectionCard}>

@@ -22,9 +22,14 @@ import {
   isNightlifeViable,
   buildExposureContext,
   lastExposureForPoi,
+  moodCategories,
   rankCandidates as rankByPreferences,
+  type SessionMood,
 } from '../../preferences';
 import type { Poi } from '../../types';
+
+/** Wider heuristic window used to rescue mood matches Clef might bury. */
+const MOOD_SCAN = 20;
 import {
   asChoiceAnswer,
   isClefConfigured,
@@ -74,6 +79,8 @@ function poiCard(poi: Poi, alias: string) {
  */
 function buildChoiceQuestion(
   shortlist: Poi[],
+  mode: 'driving' | 'walking',
+  mood: SessionMood | null,
 ): { question: ClefChoiceQuestion; aliasToPoi: Map<string, Poi> } {
   const criteria: Record<string, string> = {};
   const aliasToPoi = new Map<string, Poi>();
@@ -88,12 +95,28 @@ function buildChoiceQuestion(
       `${poi.title} (${category}, ${distance}). ${poi.summary.slice(0, 160)}`;
   });
 
+  const modeLine =
+    mode === 'walking'
+      ? 'The listener is on foot (Around / walking).'
+      : 'The listener is in a car (Drive).';
+  let preference =
+    'Prefer notable places over generic amenities. Prefer closer places when interest is similar.';
+  if (mood === 'nature') {
+    preference =
+      'Strongly prefer parks, viewpoints, lakes, coast, and outdoor nature over shops, markets, or indoor venues.';
+  } else if (mood === 'history') {
+    preference =
+      'Strongly prefer historically notable sites (castles, monuments, wartime, famous people) over generic amenities.';
+  } else if (mood === 'surprise') {
+    preference =
+      'Prefer an unexpected but still interesting pick over the most obvious tourist landmark.';
+  }
+
   return {
     aliasToPoi,
     question: {
       type: 'choice',
-      instructions:
-        'Which place should an in-car audio travel guide narrate next for a curious passenger? Prefer historically or culturally notable sites over generic amenities. Prefer closer places when interest is similar.',
+      instructions: `${modeLine} Which place should the audio travel guide narrate next? ${preference}`,
       criteria,
     },
   };
@@ -142,12 +165,18 @@ export async function rankCandidatesForNarration(
     return shortlist;
   }
 
-  const { question, aliasToPoi } = buildChoiceQuestion(shortlist);
+  const session = await getSessionState();
+  const { question, aliasToPoi } = buildChoiceQuestion(
+    shortlist,
+    mode,
+    session.mood,
+  );
 
   try {
     const response = await runClef({
       state: {
         mode,
+        mood: session.mood,
         purpose: 'Select the best nearby point(s) of interest for spoken travel narration.',
         candidates: shortlist.map((poi, index) => poiCard(poi, `p${index}`)),
       },
@@ -189,19 +218,38 @@ export async function selectPoisForNarration(
 ): Promise<Poi[]> {
   const ranked = await rankCandidatesForNarration(pois, mode);
   const limit = selectionLimit(mode);
-  if (ranked.length <= 1) {
-    return ranked.slice(0, limit);
-  }
 
   try {
     const [profile, session] = await Promise.all([
       getPreferenceProfile(),
       getSessionState(),
     ]);
+    const moodCats = new Set(moodCategories(session.mood));
+    // Pull mood matches from a wider heuristic band so parks are not stuck
+    // below a market-heavy Clef shortlist.
+    let pool = [...ranked];
+    if (moodCats.size > 0) {
+      const heuristic = rankPois(pois).slice(0, MOOD_SCAN);
+      for (const poi of heuristic) {
+        if (pool.some(p => p.id === poi.id)) {
+          continue;
+        }
+        const classification = await getOrClassifyPoi(poi);
+        if (moodCats.has(classification.primaryCategory)) {
+          pool.push(poi);
+        }
+      }
+    }
+
+    if (pool.length <= 1) {
+      return pool.slice(0, limit);
+    }
+
     const context = buildExposureContext(mode);
     const prefCandidates = [];
-    for (let index = 0; index < ranked.length; index++) {
-      const poi = ranked[index];
+    const byId = new Map(pool.map(p => [p.id, p]));
+    for (let index = 0; index < pool.length; index++) {
+      const poi = pool[index];
       const classification = await getOrClassifyPoi(poi);
       if (
         classification.primaryCategory === 'nightlife_social' &&
@@ -214,23 +262,22 @@ export async function selectPoisForNarration(
       prefCandidates.push({
         id: poi.id,
         title: poi.title,
-        baseInterest: ranked.length - index,
+        baseInterest: pool.length - index,
         categories: classification.categories,
         primaryCategory: classification.primaryCategory,
         lastExposedAt: prior?.suggestedAt,
       });
     }
     if (prefCandidates.length === 0) {
-      return ranked.slice(0, limit);
+      return pool.slice(0, limit);
     }
     const result = rankByPreferences(prefCandidates, profile, session, {
       limit,
     });
-    const byId = new Map(ranked.map(p => [p.id, p]));
     const ordered = result.selected
       .map(c => byId.get(c.id))
       .filter((p): p is Poi => p != null);
-    return ordered.length > 0 ? ordered : ranked.slice(0, limit);
+    return ordered.length > 0 ? ordered : pool.slice(0, limit);
   } catch (error) {
     console.warn('preference ranking failed, using heuristic', error);
     return ranked.slice(0, limit);

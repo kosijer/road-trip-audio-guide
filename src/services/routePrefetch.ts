@@ -45,11 +45,22 @@ export async function runPrefetch(
   const searchPoints = searchPointsForPlaceTarget(placeTarget);
 
   onProgress?.(t('prefetching'));
-  const samples = await withTimeout(
-    fetchRouteSamples(origin.trim(), destination.trim(), searchPoints),
-    30_000,
-    'directions',
-  );
+  let samples;
+  try {
+    samples = await withTimeout(
+      fetchRouteSamples(origin.trim(), destination.trim(), searchPoints),
+      30_000,
+      'directions',
+    );
+  } catch (error) {
+    if (error instanceof Error && error.message === 'network_failed') {
+      throw error;
+    }
+    if (error instanceof Error && error.message.startsWith('timeout:')) {
+      throw new Error('network_failed');
+    }
+    throw error;
+  }
   if (samples.length === 0) {
     throw new Error('route_failed');
   }

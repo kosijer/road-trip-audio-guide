@@ -1,6 +1,6 @@
 import { decodePolyline, sampleAlongRouteByCount } from '../geo';
 import { config } from '../config';
-import { fetchJsonSilent } from './http';
+import { fetchJson } from './http';
 import type { GeoPoint } from '../types';
 
 export async function fetchRouteSamples(
@@ -16,11 +16,23 @@ export async function fetchRouteSamples(
     destination,
     key: config.googleMapsApiKey,
   });
-  const data = await fetchJsonSilent<{
+  let data: {
     status: string;
     routes?: Array<{ overview_polyline?: { points?: string } }>;
-  }>(`https://maps.googleapis.com/maps/api/directions/json?${params.toString()}`);
-  const encoded = data?.routes?.[0]?.overview_polyline?.points;
+  };
+  try {
+    data = await fetchJson(
+      `https://maps.googleapis.com/maps/api/directions/json?${params.toString()}`,
+    );
+  } catch (error) {
+    console.warn('directions network failed', error);
+    throw new Error('network_failed');
+  }
+  if (data.status !== 'OK') {
+    console.warn('directions status', data.status);
+    return [];
+  }
+  const encoded = data.routes?.[0]?.overview_polyline?.points;
   if (!encoded) {
     return [];
   }

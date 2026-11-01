@@ -366,6 +366,42 @@ describe('preferences learning & ranking', () => {
     expect(JSON.stringify(stats)).toBe(snapshot);
   });
 
+  it('nature mood prefers parks even when a market has higher baseInterest', () => {
+    const now = Date.now();
+    const profile: PreferenceProfile = { stats: {}, muted: [] };
+    const session: SessionState = {
+      mood: 'nature',
+      recentPrimaryCategories: [],
+      selectionCount: 1,
+      sessionId: 'mood-filter',
+    };
+    const result = rankCandidates(
+      [
+        {
+          id: 'market',
+          title: 'Romford Market',
+          baseInterest: 8,
+          categories: ['local_culture_food'],
+          primaryCategory: 'local_culture_food',
+        },
+        {
+          id: 'park',
+          title: 'Raphael Park',
+          baseInterest: 3,
+          categories: ['nature_viewpoints'],
+          primaryCategory: 'nature_viewpoints',
+        },
+      ],
+      profile,
+      session,
+      { limit: 1, seed: 1, now },
+    );
+    expect(result.selected[0]?.id).toBe('park');
+    expect(
+      result.debug.scores.some(s => s.id === 'market' && s.excluded === 'mood'),
+    ).toBe(true);
+  });
+
   it('enforces diversity of at most 2 consecutive same primary', () => {
     const now = Date.now();
     const profile: PreferenceProfile = { stats: {}, muted: [] };

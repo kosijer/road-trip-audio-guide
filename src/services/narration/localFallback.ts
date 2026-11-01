@@ -35,7 +35,7 @@ export function localNarration(
     if (poi.weatherCaveat) {
       parts.push(poi.weatherCaveat);
     }
-    parts.push(copy.closingOne);
+    parts.push(mode === 'walking' ? copy.closingWalk : copy.closingOne);
     return parts.filter(Boolean).join(' ');
   }
 
@@ -47,7 +47,7 @@ export function localNarration(
       parts.push(poi.hoursCaveat);
     }
   });
-  parts.push(copy.closingMany);
+  parts.push(mode === 'walking' ? copy.closingWalkMany : copy.closingMany);
   return parts.filter(Boolean).join(' ');
 }
 
@@ -58,6 +58,8 @@ const enCopy = {
   leads: ['First', 'Next', 'Also'],
   closingOne: 'That is all for this place for now.',
   closingMany: 'Those are places worth keeping in mind while you are here.',
+  closingWalk: 'Worth a look while you are on foot nearby.',
+  closingWalkMany: 'Nice stops if you are exploring on foot.',
   noDetail: 'I do not have more detail at hand.',
 };
 
@@ -68,6 +70,8 @@ const srCopy = {
   leads: ['Prvo', 'Zatim', 'I još'],
   closingOne: 'To je za sada sve o ovom mestu.',
   closingMany: 'To su mesta koja vredi imati na umu dok ste ovuda.',
+  closingWalk: 'Vredi baciti pogled dok ste peške u blizini.',
+  closingWalkMany: 'Lepa mesta ako istražujete peške.',
   noDetail: 'Nemam više detalja pri ruci.',
 };
 

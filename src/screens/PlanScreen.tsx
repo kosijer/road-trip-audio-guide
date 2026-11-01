@@ -88,7 +88,14 @@ export function PlanScreen({ status, setStatus, busy }: Props) {
       });
     } catch (error) {
       console.warn('prefetch failed', error);
-      setStatus(prev => ({ ...prev, message: t('prefetchFailed') }));
+      const network =
+        error instanceof Error &&
+        (error.message.includes('network_failed') ||
+          error.message.includes('Network request failed'));
+      setStatus(prev => ({
+        ...prev,
+        message: network ? t('prefetchNetworkFailed') : t('prefetchFailed'),
+      }));
     } finally {
       setPrefetching(false);
     }
