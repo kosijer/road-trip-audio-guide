@@ -48,6 +48,12 @@ async function ensureReady(): Promise<boolean> {
   try {
     await Tts.getInitStatus();
     attachListeners();
+    // Lower / pause other apps (YouTube Music, etc.) while Along narrates.
+    try {
+      await Tts.setDucking(true);
+    } catch (error) {
+      console.warn('tts ducking unavailable', error);
+    }
     currentLanguage = getNarrationLanguage();
     await applyTtsLanguage(currentLanguage);
     currentRate = await getSpeechRate();
