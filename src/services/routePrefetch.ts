@@ -98,6 +98,7 @@ export async function runPrefetch(
     placeTarget,
     sampleCount: samples.length,
     createdAt: Date.now(),
+    kind: 'corridor',
     pois: ranked.map(poi => ({
       id: poi.id,
       title: poi.title,

@@ -234,8 +234,8 @@ function AppScreen() {
         (tab === 'around' || tab === 'drive' || tab === 'plan') ? (
           <StatusToast
             message={status.message}
-            sticky={busy || tab === 'plan'}
-            lastPoiTitle={tab === 'plan' ? undefined : status.lastPoiTitle}
+            sticky={busy}
+            lastPoiTitle={status.lastPoiTitle}
             bottomOffset={
               tab === 'plan' ? 8 : speaking || busy ? 72 : 8
             }

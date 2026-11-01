@@ -64,6 +64,17 @@ export type PrefetchBatch = {
   /** Internal corridor search points used to find them. */
   sampleCount: number;
   createdAt: number;
+  /** Corridor A→B vs inspire loop. Older batches omit this (= corridor). */
+  kind?: 'corridor' | 'loop';
+  budgetMin?: number;
+  mode?: 'walking' | 'driving';
+  /** Ordered inspire stops (loop only). */
+  stops?: Array<{
+    id: string;
+    title: string;
+    latitude: number;
+    longitude: number;
+  }>;
   pois: Array<{
     id: string;
     title: string;

@@ -18,6 +18,7 @@ import {
   type SessionMood,
 } from '../preferences';
 import { getCurrentLocation } from '../services/location';
+import { prefetchBatchUsableForDrive } from '../services/prefetch';
 import { getPrefetchBatch } from '../services/store';
 import { endTrip, startTrip } from '../services/tripEngine';
 import { colors, sharedStyles, space, type } from '../theme';
@@ -95,7 +96,9 @@ export function DriveScreen({
   }, []);
 
   useEffect(() => {
-    void getPrefetchBatch().then(setBatch);
+    void getPrefetchBatch().then(next => {
+      setBatch(prefetchBatchUsableForDrive(next) ? next : null);
+    });
   }, [status.prefetchCount, status.tripActive]);
 
   useEffect(() => {

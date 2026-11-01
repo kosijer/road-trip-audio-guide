@@ -27,7 +27,7 @@ import {
 import { generateNarration } from './narration';
 import { rankPois } from './poi/discover';
 import { selectPoisForNarration } from './poi/rankWithDecision';
-import { cacheFirstDiscover } from './prefetch';
+import { discoverForNarration } from './prefetch';
 import { applyHoursPolicy, lookupOpeningHours } from './places';
 import { speak, stopSpeaking } from './tts';
 import { getWeather } from './weather';
@@ -298,9 +298,13 @@ async function narrateOnce(
     mode === 'walking' ? config.walkingPoiRadiusM : config.drivingPoiRadiusM;
   let pois: Poi[] = [];
   try {
-    pois = await cacheFirstDiscover(location, radius);
+    pois = await discoverForNarration(location, radius, mode);
     if (mode === 'walking' && pois.length === 0) {
-      pois = await cacheFirstDiscover(location, Math.max(radius, 3000));
+      pois = await discoverForNarration(
+        location,
+        Math.max(radius, 3000),
+        mode,
+      );
     }
   } catch (error) {
     console.warn('poi discovery failed', error);
@@ -314,7 +318,11 @@ async function narrateOnce(
     rankPois(skipHeard ? list.filter(poi => !narrated.has(poi.id)) : list);
   let candidates = pickCandidates(pois);
   if (mode === 'walking' && candidates.length === 0 && skipHeard) {
-    pois = await cacheFirstDiscover(location, Math.max(radius, 3000));
+    pois = await discoverForNarration(
+      location,
+      Math.max(radius, 3000),
+      mode,
+    );
     candidates = pickCandidates(pois);
   }
   if (candidates.length === 0) {
