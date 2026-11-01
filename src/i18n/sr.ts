@@ -179,6 +179,9 @@ export const sr: Record<StringKey, string> = {
   debugWestminster: 'Westminster',
   debugOn: 'Debug lokacija: {label}',
   debugOff: 'Debug lokacija isključena (pravi GPS)',
+  debugSimulateMotion: 'Simuliraj kretanje (vožnja)',
+  debugSimulateMotionHint:
+    'Uz debug lokaciju pomera te na istok ~48 km/h da Drive može da demo-uje „coming up“ na emulatoru.',
   uiLanguage: 'Jezik aplikacije',
   narrationLanguage: 'Jezik priče',
   narrationFollowUi: 'Prati jezik aplikacije',

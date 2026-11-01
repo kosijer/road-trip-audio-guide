@@ -12,6 +12,8 @@ import {
 } from '../i18n';
 import {
   FAKE_LOCATIONS,
+  isSimulateMotion,
+  setSimulateMotion,
   type FakeLocationId,
 } from '../services/location';
 import {
@@ -58,10 +60,17 @@ export function SettingsScreen({
   const [speedThreshold, setSpeedThreshold] = useState(
     SPEED_THRESHOLD_DEFAULT_KMH,
   );
+  const [simMotion, setSimMotion] = useState(isSimulateMotion());
 
   useEffect(() => {
     void getSpeedThresholdKmh().then(setSpeedThreshold);
   }, []);
+
+  useEffect(() => {
+    if (!fakeLocation) {
+      setSimMotion(false);
+    }
+  }, [fakeLocation]);
 
   const loc = status.lastLocation
     ? `${status.lastLocation.latitude.toFixed(4)}, ${status.lastLocation.longitude.toFixed(4)} · ${Math.round(status.lastLocation.speedKmh)} km/h`
@@ -140,9 +149,21 @@ export function SettingsScreen({
   const onDebugChange = useCallback(
     (value: DebugLocationValue) => {
       onFakeLocation(value === 'gps' ? null : value);
+      if (value === 'gps') {
+        setSimulateMotion(false);
+        setSimMotion(false);
+      }
     },
     [onFakeLocation],
   );
+
+  const onSimMotion = useCallback(() => {
+    if (!fakeLocation) {
+      return;
+    }
+    const next = setSimulateMotion(!simMotion);
+    setSimMotion(next);
+  }, [fakeLocation, simMotion]);
 
   return (
     <ScrollView
@@ -244,6 +265,26 @@ export function SettingsScreen({
           options={debugOptions}
           onChange={onDebugChange}
         />
+        {fakeLocation ? (
+          <>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: simMotion }}
+              hitSlop={6}
+              onPress={onSimMotion}>
+              <Text
+                style={[
+                  styles.matchLink,
+                  simMotion && styles.matchLinkOn,
+                ]}>
+                {simMotion
+                  ? `✓ ${t('debugSimulateMotion')}`
+                  : t('debugSimulateMotion')}
+              </Text>
+            </Pressable>
+            <Text style={sharedStyles.hint}>{t('debugSimulateMotionHint')}</Text>
+          </>
+        ) : null}
       </View>
 
       <View style={sharedStyles.sectionCard}>

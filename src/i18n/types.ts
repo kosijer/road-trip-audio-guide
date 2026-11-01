@@ -165,6 +165,8 @@ export type StringKey =
   | 'debugWestminster'
   | 'debugOn'
   | 'debugOff'
+  | 'debugSimulateMotion'
+  | 'debugSimulateMotionHint'
   | 'uiLanguage'
   | 'narrationLanguage'
   | 'narrationFollowUi'

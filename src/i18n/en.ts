@@ -178,6 +178,9 @@ export const en: Record<StringKey, string> = {
   debugWestminster: 'Westminster',
   debugOn: 'Debug location: {label}',
   debugOff: 'Debug location off (real GPS)',
+  debugSimulateMotion: 'Simulate driving motion',
+  debugSimulateMotionHint:
+    'With a debug location, move east at ~48 km/h so Drive can demo “coming up” teasers on an emulator.',
   uiLanguage: 'App language',
   narrationLanguage: 'Narration language',
   narrationFollowUi: 'Match app language',

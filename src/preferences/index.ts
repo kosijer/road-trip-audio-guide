@@ -42,4 +42,4 @@ export {
   setCategoryInterest,
 } from './preferenceStore';
 export type { UserProfile } from './preferenceStore';
-export { applyTasteForPoi } from './taste';
+export { applyTasteForPoi, applyTasteForVisit } from './taste';

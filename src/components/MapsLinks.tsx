@@ -2,23 +2,34 @@ import { Linking, Pressable, StyleSheet, Text } from 'react-native';
 import { useI18n } from '../hooks/useI18n';
 import { colors, space, type } from '../theme';
 
-export type MapsTravelMode = 'walking' | 'driving';
+/** `pin` opens the place only (no directions). */
+export type MapsTravelMode = 'walking' | 'driving' | 'pin';
 
 type Props = {
   latitude: number;
   longitude: number;
-  /** Walking for Around / walk loops; driving for Drive / A→B. */
+  /** Walking / driving directions, or pin for History browse. */
   mode: MapsTravelMode;
 };
+
+function mapsUrl(
+  latitude: number,
+  longitude: number,
+  travelmode: MapsTravelMode,
+): string {
+  if (travelmode === 'pin') {
+    return `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+  }
+  return `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=${travelmode}`;
+}
 
 async function openMaps(
   latitude: number,
   longitude: number,
   travelmode: MapsTravelMode,
 ) {
-  const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=${travelmode}`;
   try {
-    await Linking.openURL(url);
+    await Linking.openURL(mapsUrl(latitude, longitude, travelmode));
   } catch (error) {
     console.warn('maps open failed', error);
   }

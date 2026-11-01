@@ -1,4 +1,5 @@
-import { getPoi } from '../services/store';
+import { getPoi, savePoi } from '../services/store';
+import type { VisitRecord } from '../types';
 import { getOrClassifyPoi } from './classify';
 import { buildExposureContext } from './context';
 import {
@@ -37,4 +38,34 @@ export async function applyTasteForPoi(
     return null;
   }
   return saved.outcome === 'ignored' ? null : saved.outcome;
+}
+
+/** History rows may outlive the POI cache — rebuild a stub so taste still works. */
+export async function applyTasteForVisit(
+  visit: VisitRecord,
+  outcome: 'liked' | 'not_interested',
+): Promise<ExposureOutcome | null> {
+  let poi = await getPoi(visit.poiId);
+  if (!poi) {
+    poi = {
+      id: visit.poiId,
+      title: visit.title,
+      summary: visit.summary ?? '',
+      location: {
+        latitude: visit.latitude,
+        longitude: visit.longitude,
+      },
+      source: visit.source,
+      category: visit.category,
+      extractLength: (visit.summary ?? '').length,
+      isOutdoor: true,
+      isIndoorVenue: false,
+    };
+    await savePoi(poi);
+  }
+  const mode: PreferenceMode =
+    visit.mode === 'driving' || visit.mode === 'walking'
+      ? visit.mode
+      : 'browse';
+  return applyTasteForPoi(visit.poiId, outcome, mode);
 }

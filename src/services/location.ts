@@ -39,8 +39,35 @@ const FRESH_TTL_MS = 120_000;
 let cachedFresh: LocationSample | null = null;
 let freshInflight: Promise<LocationSample> | null = null;
 
+/** Emulator demo: move east from the fake pin at highway-ish speed. */
+const DEMO_SPEED_KMH = 48;
+const DEMO_HEADING_DEG = 90;
+let simulateMotion = false;
+let motionOrigin: GeoPoint | null = null;
+let motionStartedAt = 0;
+
 export function getLocationOverride(): (GeoPoint & { label: string }) | null {
   return locationOverride;
+}
+
+export function isSimulateMotion(): boolean {
+  return simulateMotion;
+}
+
+export function setSimulateMotion(on: boolean): boolean {
+  simulateMotion = on && locationOverride != null;
+  if (simulateMotion && locationOverride) {
+    motionOrigin = {
+      latitude: locationOverride.latitude,
+      longitude: locationOverride.longitude,
+    };
+    motionStartedAt = Date.now();
+  } else {
+    motionOrigin = null;
+    motionStartedAt = 0;
+  }
+  cachedFresh = locationOverride ? overrideSample() : null;
+  return simulateMotion;
 }
 
 export function setLocationOverride(
@@ -48,6 +75,9 @@ export function setLocationOverride(
 ): (GeoPoint & { label: string }) | null {
   if (!next) {
     locationOverride = null;
+    simulateMotion = false;
+    motionOrigin = null;
+    motionStartedAt = 0;
     return null;
   }
   const spot = FAKE_LOCATIONS[next];
@@ -56,6 +86,13 @@ export function setLocationOverride(
     latitude: spot.latitude,
     longitude: spot.longitude,
   };
+  if (simulateMotion) {
+    motionOrigin = {
+      latitude: spot.latitude,
+      longitude: spot.longitude,
+    };
+    motionStartedAt = Date.now();
+  }
   cachedFresh = overrideSample();
   return locationOverride;
 }
@@ -160,12 +197,57 @@ async function readTripDeviceLocation(): Promise<LocationSample> {
   }
 }
 
+function offsetAlongHeading(
+  origin: GeoPoint,
+  headingDeg: number,
+  distanceM: number,
+): GeoPoint {
+  const R = 6_371_000;
+  const δ = distanceM / R;
+  const θ = (headingDeg * Math.PI) / 180;
+  const φ1 = (origin.latitude * Math.PI) / 180;
+  const λ1 = (origin.longitude * Math.PI) / 180;
+  const sinφ1 = Math.sin(φ1);
+  const cosφ1 = Math.cos(φ1);
+  const sinδ = Math.sin(δ);
+  const cosδ = Math.cos(δ);
+  const sinφ2 = sinφ1 * cosδ + cosφ1 * sinδ * Math.cos(θ);
+  const φ2 = Math.asin(sinφ2);
+  const λ2 =
+    λ1 +
+    Math.atan2(
+      Math.sin(θ) * sinδ * cosφ1,
+      cosδ - sinφ1 * sinφ2,
+    );
+  return {
+    latitude: (φ2 * 180) / Math.PI,
+    longitude: (((λ2 * 180) / Math.PI + 540) % 360) - 180,
+  };
+}
+
 function overrideSample(): LocationSample {
+  const now = Date.now();
+  if (simulateMotion && motionOrigin) {
+    const elapsedH = Math.max(0, (now - motionStartedAt) / 3_600_000);
+    const distanceM = DEMO_SPEED_KMH * 1000 * elapsedH;
+    const point = offsetAlongHeading(
+      motionOrigin,
+      DEMO_HEADING_DEG,
+      distanceM,
+    );
+    return {
+      latitude: point.latitude,
+      longitude: point.longitude,
+      speedKmh: DEMO_SPEED_KMH,
+      timestamp: now,
+      accuracyM: 5,
+    };
+  }
   return {
     latitude: locationOverride!.latitude,
     longitude: locationOverride!.longitude,
     speedKmh: 0,
-    timestamp: Date.now(),
+    timestamp: now,
     accuracyM: 5,
   };
 }

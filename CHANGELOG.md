@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- History: 👍/👎 taste feedback + Maps pin link (opens place, no walk/drive directions).
+- Debug: optional simulate-driving motion from a fake location (~48 km/h east) for emulator demos.
 - Drive v2 coming-up queue: heading cones (narrow then wide), short TTS teaser, silence hold with Skip, then full narration — independent of Plan prefetch (`docs/superpowers/specs/2026-11-01-drive-v2-coming-up-design.md`).
 - Personal preferences (spec): taxonomy + mapping classification, Beta learning with decay, bounded Thompson ranking, mute/mood controls, 👍/👎 taste feedback separate from narration stars, Settings taste profile, legacy History rating migration (cautious; non-viable so it does not pollute stats). Reuses AsyncStorage visit history rather than a new SQLite stack.
 - Plan tab (Route Prep); Drive simplified to Start Trip + map + next place + Maps directions; configurable trip speed threshold with displacement gate for walk/bike.
