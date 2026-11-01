@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { applyExposureOutcome, priorFor } from './learning';
+import { applyExposureOutcome, interestToStats, priorFor } from './learning';
 import { CATEGORY_IDS, PREF } from './preferences.config';
 import type {
   CategoryId,
@@ -20,7 +20,23 @@ const KEY = {
   summary: 'rtag:pref:summary',
   session: 'rtag:pref:session',
   migrated: 'rtag:pref:legacyMigrated',
+  userProfile: 'rtag:userProfile',
 };
+
+export type UserProfile = {
+  firstName: string;
+  lastName: string;
+  email: string;
+};
+
+/** Demo “signed-in” identity until real auth exists. */
+export const DEMO_USER_PROFILE: UserProfile = {
+  firstName: 'Nebojsa',
+  lastName: 'Kosijer',
+  email: 'kosijer@test.com',
+};
+
+export const emptyUserProfile = (): UserProfile => ({ ...DEMO_USER_PROFILE });
 
 function newSessionId(): string {
   return `s_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -163,6 +179,52 @@ export async function recordSelection(
 
 export async function resetPreferenceProfile(): Promise<void> {
   await AsyncStorage.removeMany([KEY.stats, KEY.summary, KEY.muted]);
+}
+
+export async function getUserProfile(): Promise<UserProfile> {
+  const raw = await AsyncStorage.getItem(KEY.userProfile);
+  if (!raw) {
+    await AsyncStorage.setItem(
+      KEY.userProfile,
+      JSON.stringify(DEMO_USER_PROFILE),
+    );
+    return { ...DEMO_USER_PROFILE };
+  }
+  try {
+    const parsed = JSON.parse(raw) as Partial<UserProfile>;
+    const firstName = parsed.firstName?.trim() ?? '';
+    const lastName = parsed.lastName?.trim() ?? '';
+    const email = parsed.email?.trim() ?? '';
+    // Empty legacy row → seed demo identity so Profile looks signed-in.
+    if (!firstName && !lastName && !email) {
+      await AsyncStorage.setItem(
+        KEY.userProfile,
+        JSON.stringify(DEMO_USER_PROFILE),
+      );
+      return { ...DEMO_USER_PROFILE };
+    }
+    return { firstName, lastName, email };
+  } catch {
+    return { ...DEMO_USER_PROFILE };
+  }
+}
+
+export async function saveUserProfile(
+  profile: UserProfile,
+): Promise<UserProfile> {
+  await AsyncStorage.setItem(KEY.userProfile, JSON.stringify(profile));
+  return profile;
+}
+
+export async function setCategoryInterest(
+  category: CategoryId,
+  interest0to100: number,
+): Promise<CategoryStats> {
+  const stats = await getCategoryStatsMap();
+  const next = interestToStats(category, interest0to100, stats[category]);
+  stats[category] = next;
+  await saveCategoryStatsMap(stats);
+  return next;
 }
 
 export async function recordExposure(input: {

@@ -4,9 +4,12 @@ import {
   clampMult,
   decayed,
   evidenceCount,
+  interestToStats,
+  meanPreference,
   mulberry32,
   preferenceMultiplierForCategories,
   priorFor,
+  statsToInterest,
 } from '../preferences/learning';
 import { ratingToOutcome } from '../preferences/migrate';
 import { PREF } from '../preferences/preferences.config';
@@ -464,5 +467,11 @@ describe('preferences learning & ranking', () => {
   it('reports evidence for confidence helper', () => {
     expect(evidenceCount(2, 2, 'architecture')).toBe(0);
     expect(evidenceCount(7, 2, 'architecture')).toBe(5);
+  });
+
+  it('round-trips interest sliders through Beta stats', () => {
+    const stats = interestToStats('nature_viewpoints', 80);
+    expect(statsToInterest(stats.alpha, stats.beta)).toBe(80);
+    expect(meanPreference(stats.alpha, stats.beta)).toBeCloseTo(0.8, 2);
   });
 });

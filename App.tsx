@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { DeviceEventEmitter, StatusBar, View } from 'react-native';
+import { Alert, DeviceEventEmitter, StatusBar, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  AccountMenu,
+  type AccountMenuAction,
+} from './src/components/AccountMenu';
 import { AppHeader } from './src/components/AppHeader';
 import { BottomTabs, type MainTab } from './src/components/BottomTabs';
 import { useI18n } from './src/hooks/useI18n';
@@ -9,6 +13,7 @@ import { AroundScreen } from './src/screens/AroundScreen';
 import { DriveScreen } from './src/screens/DriveScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
 import { PlanScreen } from './src/screens/PlanScreen';
+import { ProfileScreen } from './src/screens/ProfileScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import {
   FAKE_LOCATIONS,
@@ -35,6 +40,8 @@ import {
 import { colors, sharedStyles } from './src/theme';
 import type { TripStatus } from './src/types';
 
+type Overlay = 'none' | 'settings' | 'profile';
+
 function App() {
   return (
     <SafeAreaProvider>
@@ -48,7 +55,8 @@ function AppScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useI18n();
   const [tab, setTab] = useState<MainTab>('around');
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [overlay, setOverlay] = useState<Overlay>('none');
+  const [menuOpen, setMenuOpen] = useState(false);
   const [status, setStatus] = useState<TripStatus>(emptyStatus());
   const [busy, setBusy] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -136,19 +144,40 @@ function AppScreen() {
   );
 
   const onChangeTab = useCallback((next: MainTab) => {
-    setSettingsOpen(false);
+    setOverlay('none');
+    setMenuOpen(false);
     setTab(next);
   }, []);
 
-  const headerTitle = settingsOpen
-    ? t('settingsTitle')
-    : tab === 'around'
-      ? t('tabAround')
-      : tab === 'drive'
-        ? t('tabDrive')
-        : tab === 'plan'
-          ? t('tabPlan')
-          : t('tabHistory');
+  const onMenuAction = useCallback(
+    (action: AccountMenuAction) => {
+      setMenuOpen(false);
+      if (action === 'profile') {
+        setOverlay('profile');
+        return;
+      }
+      if (action === 'settings') {
+        setOverlay('settings');
+        return;
+      }
+      Alert.alert(t('menuSoonTitle'), t('menuSoonBody'));
+    },
+    [t],
+  );
+
+  const overlayOpen = overlay !== 'none';
+  const headerTitle =
+    overlay === 'settings'
+      ? t('settingsTitle')
+      : overlay === 'profile'
+        ? t('profileTitle')
+        : tab === 'around'
+          ? t('tabAround')
+          : tab === 'drive'
+            ? t('tabDrive')
+            : tab === 'plan'
+              ? t('tabPlan')
+              : t('tabHistory');
 
   if (!ready) {
     return <View style={sharedStyles.root} />;
@@ -158,12 +187,17 @@ function AppScreen() {
     <View style={[sharedStyles.root, { paddingTop: insets.top }]}>
       <AppHeader
         title={headerTitle}
-        mode={settingsOpen ? 'settings' : 'main'}
-        onPressSettings={() => setSettingsOpen(true)}
-        onPressBack={() => setSettingsOpen(false)}
+        mode={overlayOpen ? 'overlay' : 'main'}
+        onPressMenu={() => setMenuOpen(true)}
+        onPressBack={() => setOverlay('none')}
+      />
+      <AccountMenu
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        onAction={onMenuAction}
       />
       <View style={{ flex: 1 }}>
-        {settingsOpen ? (
+        {overlay === 'settings' ? (
           <SettingsScreen
             status={status}
             speechRate={speechRate}
@@ -172,7 +206,8 @@ function AppScreen() {
             onFakeLocation={onFakeLocation}
           />
         ) : null}
-        {!settingsOpen && tab === 'around' ? (
+        {overlay === 'profile' ? <ProfileScreen /> : null}
+        {!overlayOpen && tab === 'around' ? (
           <AroundScreen
             status={status}
             setStatus={setStatus}
@@ -182,7 +217,7 @@ function AppScreen() {
             onNext={onNext}
           />
         ) : null}
-        {!settingsOpen && tab === 'drive' ? (
+        {!overlayOpen && tab === 'drive' ? (
           <DriveScreen
             status={status}
             setStatus={setStatus}
@@ -191,11 +226,11 @@ function AppScreen() {
             setBusy={setBusy}
           />
         ) : null}
-        {!settingsOpen && tab === 'plan' ? (
+        {!overlayOpen && tab === 'plan' ? (
           <PlanScreen status={status} setStatus={setStatus} busy={busy} />
         ) : null}
-        {!settingsOpen && tab === 'history' ? <HistoryScreen /> : null}
-        {!settingsOpen &&
+        {!overlayOpen && tab === 'history' ? <HistoryScreen /> : null}
+        {!overlayOpen &&
         (tab === 'around' || tab === 'drive' || tab === 'plan') ? (
           <StatusToast
             message={status.message}
@@ -206,7 +241,7 @@ function AppScreen() {
             }
           />
         ) : null}
-        {!settingsOpen && (tab === 'around' || tab === 'drive') ? (
+        {!overlayOpen && (tab === 'around' || tab === 'drive') ? (
           <PlaybackOverlay
             visible={speaking}
             speaking={speaking}
@@ -221,7 +256,7 @@ function AppScreen() {
         active={tab}
         onChange={onChangeTab}
         bottomInset={insets.bottom}
-        hidden={settingsOpen}
+        hidden={overlayOpen}
       />
     </View>
   );

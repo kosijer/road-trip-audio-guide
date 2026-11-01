@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
 
 type IconProps = {
@@ -130,6 +130,157 @@ export function HistoryIcon({ color, size = 22 }: IconProps) {
           }}
         />
       </View>
+    </View>
+  );
+}
+
+export function HelpIcon({ color, size = 22 }: IconProps) {
+  const ring = size * 0.9;
+  return (
+    <View style={[styles.box, { width: size, height: size }]}>
+      <View
+        style={{
+          width: ring,
+          height: ring,
+          borderRadius: ring,
+          borderWidth: 1.5,
+          borderColor: color,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+        <Text
+          style={{
+            color,
+            fontSize: size * 0.58,
+            fontWeight: '700',
+            lineHeight: size * 0.7,
+            includeFontPadding: false,
+          }}>
+          ?
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+/** Simple person silhouette for avatar placeholder. */
+export function PersonIcon({ color, size = 22 }: IconProps) {
+  const head = size * 0.34;
+  return (
+    <View style={[styles.box, { width: size, height: size }]}>
+      <View
+        style={{
+          width: head,
+          height: head,
+          borderRadius: head,
+          backgroundColor: color,
+          marginBottom: size * 0.06,
+        }}
+      />
+      <View
+        style={{
+          width: size * 0.62,
+          height: size * 0.34,
+          borderTopLeftRadius: size * 0.32,
+          borderTopRightRadius: size * 0.32,
+          backgroundColor: color,
+        }}
+      />
+    </View>
+  );
+}
+
+/** Category include/exclude — check when active, X when muted. */
+export function MuteIcon({
+  color,
+  size = 22,
+  muted = false,
+}: IconProps & { muted?: boolean }) {
+  const stroke = Math.max(1.5, size * 0.11);
+  if (muted) {
+    // X
+    return (
+      <View style={[styles.box, { width: size, height: size }]}>
+        <View
+          style={{
+            position: 'absolute',
+            width: size * 0.62,
+            height: stroke,
+            borderRadius: stroke,
+            backgroundColor: color,
+            transform: [{ rotate: '45deg' }],
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            width: size * 0.62,
+            height: stroke,
+            borderRadius: stroke,
+            backgroundColor: color,
+            transform: [{ rotate: '-45deg' }],
+          }}
+        />
+      </View>
+    );
+  }
+  // Checkmark
+  return (
+    <View style={[styles.box, { width: size, height: size }]}>
+      <View
+        style={{
+          width: size * 0.28,
+          height: size * 0.48,
+          borderRightWidth: stroke,
+          borderBottomWidth: stroke,
+          borderColor: color,
+          transform: [{ rotate: '40deg' }],
+          marginTop: -size * 0.06,
+          marginLeft: size * 0.04,
+        }}
+      />
+    </View>
+  );
+}
+
+/** Incomplete ring — category still has thin evidence / “learning”. */
+export function LearningIcon({ color, size = 14 }: IconProps) {
+  const ring = size * 0.92;
+  return (
+    <View style={[styles.box, { width: size, height: size }]}>
+      <View
+        style={{
+          width: ring,
+          height: ring,
+          borderRadius: ring,
+          borderWidth: 1.5,
+          borderColor: color,
+          borderTopColor: 'transparent',
+          borderRightColor: color,
+          transform: [{ rotate: '-35deg' }],
+        }}
+      />
+    </View>
+  );
+}
+
+export function MenuIcon({ color, size = 22 }: IconProps) {
+  const barW = size * 0.72;
+  const barH = Math.max(2, Math.round(size * 0.12));
+  const gap = size * 0.14;
+  return (
+    <View style={[styles.box, { width: size, height: size, gap }]}>
+      {[0, 1, 2].map(i => (
+        <View
+          key={i}
+          style={{
+            width: barW,
+            height: barH,
+            borderRadius: barH,
+            backgroundColor: color,
+          }}
+        />
+      ))}
     </View>
   );
 }

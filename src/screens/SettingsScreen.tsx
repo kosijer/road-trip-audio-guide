@@ -1,6 +1,8 @@
 import Slider from '@react-native-community/slider';
-import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SectionHelp } from '../components/SectionHelp';
+import { SelectField } from '../components/SelectField';
 import { StatusRow } from '../components/StatusRow';
 import { useI18n, type AppLanguage } from '../hooks/useI18n';
 import {
@@ -8,18 +10,6 @@ import {
   setNarrationLanguageState,
   setUiLanguageState,
 } from '../i18n';
-import {
-  CATEGORY_IDS,
-  confidence,
-  decayed,
-  evidenceCount,
-  getPreferenceProfile,
-  meanPreference,
-  resetPreferenceProfile,
-  setCategoryMuted,
-  type CategoryId,
-  type PreferenceProfile,
-} from '../preferences';
 import {
   FAKE_LOCATIONS,
   type FakeLocationId,
@@ -46,7 +36,6 @@ import {
 } from '../services/tts';
 import { colors, sharedStyles, space } from '../theme';
 import type { TripStatus } from '../types';
-import type { StringKey } from '../i18n/types';
 
 type Props = {
   status: TripStatus;
@@ -55,6 +44,8 @@ type Props = {
   fakeLocation: FakeLocationId | null;
   onFakeLocation: (next: FakeLocationId | null) => void;
 };
+
+type DebugLocationValue = 'gps' | FakeLocationId;
 
 export function SettingsScreen({
   status,
@@ -67,16 +58,10 @@ export function SettingsScreen({
   const [speedThreshold, setSpeedThreshold] = useState(
     SPEED_THRESHOLD_DEFAULT_KMH,
   );
-  const [profile, setProfile] = useState<PreferenceProfile | null>(null);
-
-  const reloadProfile = useCallback(async () => {
-    setProfile(await getPreferenceProfile());
-  }, []);
 
   useEffect(() => {
     void getSpeedThresholdKmh().then(setSpeedThreshold);
-    void reloadProfile();
-  }, [reloadProfile]);
+  }, []);
 
   const loc = status.lastLocation
     ? `${status.lastLocation.latitude.toFixed(4)}, ${status.lastLocation.longitude.toFixed(4)} · ${Math.round(status.lastLocation.speedKmh)} km/h`
@@ -84,6 +69,24 @@ export function SettingsScreen({
   const locDisplay = fakeLocation
     ? `${FAKE_LOCATIONS[fakeLocation].label} (debug) · ${loc}`
     : loc;
+
+  const languageOptions = useMemo(
+    () => [
+      { value: 'en' as const, label: t('languageEnglish') },
+      { value: 'sr' as const, label: t('languageSerbian') },
+    ],
+    [t],
+  );
+
+  const debugOptions = useMemo(
+    () => [
+      { value: 'gps' as const, label: t('debugGps') },
+      { value: 'london' as const, label: t('debugLondon') },
+      { value: 'westminster' as const, label: t('debugWestminster') },
+      { value: 'belgrade' as const, label: t('debugBelgrade') },
+    ],
+    [t],
+  );
 
   const onUiLanguage = useCallback(async (lang: AppLanguage) => {
     const next = await saveUiLanguage(lang);
@@ -94,18 +97,16 @@ export function SettingsScreen({
     }
   }, []);
 
-  const onFollowUi = useCallback(
-    async (follows: boolean) => {
-      const next = await saveNarrationLanguage({
-        language: follows ? uiLanguage : narrationLanguage,
-        followsUi: follows,
-      });
-      hydrateI18n(next);
-      setNarrationLanguageState(next.narrationLanguage, next.narrationFollowsUi);
-      await applyNarrationLanguage(next.narrationLanguage);
-    },
-    [narrationLanguage, uiLanguage],
-  );
+  const onFollowUi = useCallback(async () => {
+    const follows = !narrationFollowsUi;
+    const next = await saveNarrationLanguage({
+      language: follows ? uiLanguage : narrationLanguage,
+      followsUi: follows,
+    });
+    hydrateI18n(next);
+    setNarrationLanguageState(next.narrationLanguage, next.narrationFollowsUi);
+    await applyNarrationLanguage(next.narrationLanguage);
+  }, [narrationFollowsUi, narrationLanguage, uiLanguage]);
 
   const onNarrationLanguage = useCallback(async (lang: AppLanguage) => {
     const next = await saveNarrationLanguage({
@@ -136,72 +137,57 @@ export function SettingsScreen({
     setSpeedThreshold(await saveSpeedThresholdKmh(kmh));
   }, []);
 
+  const onDebugChange = useCallback(
+    (value: DebugLocationValue) => {
+      onFakeLocation(value === 'gps' ? null : value);
+    },
+    [onFakeLocation],
+  );
+
   return (
     <ScrollView
       contentContainerStyle={sharedStyles.content}
       keyboardShouldPersistTaps="handled">
       <View style={sharedStyles.sectionCard}>
-        <Text style={sharedStyles.sectionCardTitle}>{t('uiLanguage')}</Text>
-        <View style={sharedStyles.rowBtns}>
-          <LangChip
-            selected={uiLanguage === 'en'}
-            label={t('languageEnglish')}
-            onPress={() => {
-              void onUiLanguage('en');
-            }}
-          />
-          <LangChip
-            selected={uiLanguage === 'sr'}
-            label={t('languageSerbian')}
-            onPress={() => {
-              void onUiLanguage('sr');
-            }}
-          />
-        </View>
-      </View>
-
-      <View style={sharedStyles.sectionCard}>
-        <Text style={sharedStyles.sectionCardTitle}>
-          {t('narrationLanguage')}
-        </Text>
+        <SelectField
+          label={t('uiLanguage')}
+          value={uiLanguage}
+          options={languageOptions}
+          onChange={lang => {
+            void onUiLanguage(lang);
+          }}
+        />
         <Pressable
           accessibilityRole="button"
-          android_ripple={{ color: colors.ripple }}
-          style={[
-            sharedStyles.chip,
-            { flex: 0, alignSelf: 'stretch' },
-            narrationFollowsUi && sharedStyles.chipSelected,
-          ]}
+          accessibilityState={{ selected: narrationFollowsUi }}
+          hitSlop={6}
           onPress={() => {
-            void onFollowUi(!narrationFollowsUi);
+            void onFollowUi();
           }}>
           <Text
             style={[
-              sharedStyles.chipText,
-              narrationFollowsUi && sharedStyles.chipTextSelected,
+              styles.matchLink,
+              narrationFollowsUi && styles.matchLinkOn,
             ]}>
-            {t('narrationFollowUi')}
+            {narrationFollowsUi
+              ? `✓ ${t('narrationFollowUi')}`
+              : t('narrationFollowUi')}
           </Text>
         </Pressable>
-        {!narrationFollowsUi ? (
-          <View style={sharedStyles.rowBtns}>
-            <LangChip
-              selected={narrationLanguage === 'en'}
-              label={t('languageEnglish')}
-              onPress={() => {
-                void onNarrationLanguage('en');
-              }}
-            />
-            <LangChip
-              selected={narrationLanguage === 'sr'}
-              label={t('languageSerbian')}
-              onPress={() => {
-                void onNarrationLanguage('sr');
-              }}
-            />
-          </View>
-        ) : null}
       </View>
+
+      {!narrationFollowsUi ? (
+        <View style={sharedStyles.sectionCard}>
+          <SelectField
+            label={t('narrationLanguage')}
+            value={narrationLanguage}
+            options={languageOptions}
+            onChange={lang => {
+              void onNarrationLanguage(lang);
+            }}
+          />
+        </View>
+      ) : null}
 
       <View style={sharedStyles.sectionCard}>
         <Text style={sharedStyles.sectionCardTitle}>{t('speechRate')}</Text>
@@ -224,11 +210,18 @@ export function SettingsScreen({
       </View>
 
       <View style={sharedStyles.sectionCard}>
-        <Text style={sharedStyles.sectionCardTitle}>{t('speedThreshold')}</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={[sharedStyles.sectionCardTitle, styles.sectionTitle]}>
+            {t('speedThreshold')}
+          </Text>
+          <SectionHelp
+            title={t('speedThreshold')}
+            body={t('speedThresholdHint')}
+          />
+        </View>
         <Text style={sharedStyles.hint}>
           {t('speedThresholdValue', { kmh: Math.round(speedThreshold) })}
         </Text>
-        <Text style={sharedStyles.hint}>{t('speedThresholdHint')}</Text>
         <Slider
           style={{ width: '100%', height: 40, marginVertical: space.xs }}
           minimumValue={SPEED_THRESHOLD_MIN_KMH}
@@ -245,125 +238,16 @@ export function SettingsScreen({
       </View>
 
       <View style={sharedStyles.sectionCard}>
-        <Text style={sharedStyles.sectionCardTitle}>{t('profileTitle')}</Text>
-        {profile?.summaryText ? (
-          <>
-            <Text style={sharedStyles.hint}>{t('profileSummary')}</Text>
-            <Text style={sharedStyles.message}>{profile.summaryText}</Text>
-          </>
-        ) : null}
-        {CATEGORY_IDS.filter(id => id !== 'other').map(category => {
-          const stats = profile?.stats[category];
-          const now = Date.now();
-          const d = stats
-            ? decayed(stats, now)
-            : { alpha: 2, beta: 2 };
-          const conf = confidence(d.alpha, d.beta, category);
-          const mean = meanPreference(d.alpha, d.beta);
-          const evidence = Math.round(
-            evidenceCount(d.alpha, d.beta, category),
-          );
-          const muted = profile?.muted.includes(category) ?? false;
-          const labelKey = `cat_${category}` as StringKey;
-          return (
-            <View key={category} style={{ marginTop: space.sm }}>
-              <StatusRow
-                label={t(labelKey)}
-                value={
-                  conf < 1
-                    ? t('profileStillLearning')
-                    : `${Math.round(mean * 100)}% · ${t('profileEvidence', { n: evidence })}`
-                }
-              />
-              <Pressable
-                accessibilityRole="button"
-                android_ripple={{ color: colors.ripple }}
-                style={[
-                  sharedStyles.chip,
-                  { alignSelf: 'flex-start', marginTop: space.xs },
-                  muted && sharedStyles.chipSelected,
-                ]}
-                onPress={() => {
-                  void (async () => {
-                    await setCategoryMuted(category as CategoryId, !muted);
-                    await reloadProfile();
-                  })();
-                }}>
-                <Text
-                  style={[
-                    sharedStyles.chipText,
-                    muted && sharedStyles.chipTextSelected,
-                  ]}>
-                  {muted ? t('profileUnmute') : t('profileMute')}
-                </Text>
-              </Pressable>
-              <View style={sharedStyles.divider} />
-            </View>
-          );
-        })}
-        <Pressable
-          accessibilityRole="button"
-          android_ripple={{ color: colors.ripple }}
-          style={sharedStyles.secondary}
-          onPress={() => {
-            Alert.alert(t('profileReset'), t('profileResetConfirm'), [
-              { text: t('cancel'), style: 'cancel' },
-              {
-                text: t('profileReset'),
-                style: 'destructive',
-                onPress: () => {
-                  void (async () => {
-                    await resetPreferenceProfile();
-                    await reloadProfile();
-                  })();
-                },
-              },
-            ]);
-          }}>
-          <Text style={sharedStyles.secondaryText}>{t('profileReset')}</Text>
-        </Pressable>
-      </View>
-
-      <View style={sharedStyles.sectionCard}>
-        <Text style={sharedStyles.sectionCardTitle}>{t('debugLocation')}</Text>
-        <View style={sharedStyles.rowBtns}>
-          <LangChip
-            selected={fakeLocation === null}
-            label={t('debugGps')}
-            onPress={() => onFakeLocation(null)}
-          />
-          <LangChip
-            selected={fakeLocation === 'london'}
-            label={t('debugLondon')}
-            onPress={() => onFakeLocation('london')}
-          />
-        </View>
-        <View style={sharedStyles.rowBtns}>
-          <LangChip
-            selected={fakeLocation === 'westminster'}
-            label={t('debugWestminster')}
-            onPress={() => onFakeLocation('westminster')}
-          />
-          <LangChip
-            selected={fakeLocation === 'belgrade'}
-            label={t('debugBelgrade')}
-            onPress={() => onFakeLocation('belgrade')}
-          />
-        </View>
+        <SelectField
+          label={t('debugLocation')}
+          value={(fakeLocation ?? 'gps') as DebugLocationValue}
+          options={debugOptions}
+          onChange={onDebugChange}
+        />
       </View>
 
       <View style={sharedStyles.sectionCard}>
         <Text style={sharedStyles.sectionCardTitle}>{t('diagnostics')}</Text>
-        <StatusRow
-          label={t('statusTrip')}
-          value={status.tripActive ? t('tripActive') : t('tripIdle')}
-        />
-        <View style={sharedStyles.divider} />
-        <StatusRow
-          label={t('statusMotion')}
-          value={status.moving ? t('moving') : t('stationary')}
-        />
-        <View style={sharedStyles.divider} />
         <StatusRow label={t('statusLocation')} value={locDisplay} />
         <View style={sharedStyles.divider} />
         <StatusRow label={t('statusLlm')} value={`${status.llmCalls}`} />
@@ -372,36 +256,29 @@ export function SettingsScreen({
           label={t('statusPrefetch')}
           value={`${status.prefetchCount}`}
         />
-        <View style={sharedStyles.divider} />
-        <Text style={sharedStyles.message}>{status.message || '—'}</Text>
       </View>
     </ScrollView>
   );
 }
 
-function LangChip({
-  selected,
-  label,
-  onPress,
-}: {
-  selected: boolean;
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      android_ripple={{ color: colors.ripple }}
-      style={[sharedStyles.chip, selected && sharedStyles.chipSelected]}
-      onPress={onPress}>
-      <Text
-        style={[
-          sharedStyles.chipText,
-          selected && sharedStyles.chipTextSelected,
-        ]}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
+const styles = StyleSheet.create({
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+    marginBottom: space.xs,
+  },
+  sectionTitle: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  matchLink: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.dim,
+    fontWeight: '600',
+  },
+  matchLinkOn: {
+    color: colors.accent,
+  },
+});

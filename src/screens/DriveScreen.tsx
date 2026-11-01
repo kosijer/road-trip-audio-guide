@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import {
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { NearbyMap } from '../components/NearbyMap';
 import { useI18n } from '../hooks/useI18n';
 import { haversineM } from '../geo';
@@ -7,7 +14,7 @@ import { config } from '../config';
 import { getCurrentLocation } from '../services/location';
 import { getPrefetchBatch } from '../services/store';
 import { endTrip, startTrip } from '../services/tripEngine';
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, space, type } from '../theme';
 import type { GeoPoint, PrefetchBatch, TripStatus } from '../types';
 
 type Props = {
@@ -189,6 +196,14 @@ export function DriveScreen({
           radiusM={config.drivingPoiRadiusM}
         />
       </View>
+      {status.tripActive ? (
+        <Text style={styles.motionHint}>
+          {status.moving ? t('moving') : t('stationary')}
+          {status.lastLocation
+            ? ` · ${Math.round(status.lastLocation.speedKmh)} km/h`
+            : ''}
+        </Text>
+      ) : null}
 
       {suggested ? (
         <View style={sharedStyles.sectionCard}>
@@ -219,3 +234,13 @@ export function DriveScreen({
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  motionHint: {
+    ...type.caption,
+    color: colors.dim,
+    marginTop: -space.sm,
+    marginBottom: space.sm,
+    paddingHorizontal: space.xs,
+  },
+});

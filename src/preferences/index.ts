@@ -11,6 +11,8 @@ export {
   evidenceCount,
   confidence,
   meanPreference,
+  statsToInterest,
+  interestToStats,
   mulberry32,
   preferenceMultiplierForCategories,
   clampMult,
@@ -34,4 +36,9 @@ export {
   setCategoryMuted,
   getMutedCategories,
   getExposures,
+  getUserProfile,
+  saveUserProfile,
+  emptyUserProfile,
+  setCategoryInterest,
 } from './preferenceStore';
+export type { UserProfile } from './preferenceStore';

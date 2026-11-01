@@ -1,26 +1,26 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useI18n } from '../hooks/useI18n';
 import { colors, radius, space, touchMin, type } from '../theme';
-import { BackIcon, SettingsIcon } from './Icons';
+import { BackIcon, MenuIcon } from './Icons';
 
 type Props = {
   title: string;
-  mode: 'main' | 'settings';
-  onPressSettings: () => void;
+  mode: 'main' | 'overlay';
+  onPressMenu: () => void;
   onPressBack: () => void;
 };
 
 export function AppHeader({
   title,
   mode,
-  onPressSettings,
+  onPressMenu,
   onPressBack,
 }: Props) {
   const { t } = useI18n();
   return (
     <View style={styles.bar}>
       <View style={styles.side}>
-        {mode === 'settings' ? (
+        {mode === 'overlay' ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('headerBack')}
@@ -43,12 +43,12 @@ export function AppHeader({
         {mode === 'main' ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={t('settingsTitle')}
+            accessibilityLabel={t('menuOpen')}
             android_ripple={{ color: colors.ripple, borderless: true }}
             style={styles.iconBtn}
-            onPress={onPressSettings}
+            onPress={onPressMenu}
             hitSlop={8}>
-            <SettingsIcon color={colors.muted} size={18} bg={colors.card} />
+            <MenuIcon color={colors.muted} size={18} />
           </Pressable>
         ) : (
           <View style={styles.iconBtnPlaceholder} />

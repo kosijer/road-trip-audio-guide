@@ -47,6 +47,38 @@ export function meanPreference(alpha: number, beta: number): number {
   return alpha / (alpha + beta);
 }
 
+/** Map Beta mean → 0..100 interest slider. */
+export function statsToInterest(alpha: number, beta: number): number {
+  return Math.round(meanPreference(alpha, beta) * 100);
+}
+
+/**
+ * Map 0..100 interest → Beta stats.
+ * Keeps evidence mass (or prior mass) so learning can keep nudging from here.
+ */
+export function interestToStats(
+  category: CategoryId,
+  interest0to100: number,
+  previous?: CategoryStats,
+  now = Date.now(),
+): CategoryStats {
+  const m = Math.min(1, Math.max(0, interest0to100 / 100));
+  const priorA = SEEDED_PRIORS[category]?.alpha ?? PREF.PRIOR_ALPHA;
+  const priorB = SEEDED_PRIORS[category]?.beta ?? PREF.PRIOR_BETA;
+  const priorSum = priorA + priorB;
+  const prev = previous ? decayed(previous, now) : null;
+  const strength = Math.max(priorSum, prev ? prev.alpha + prev.beta : priorSum);
+  // Avoid zero mass on either side for Thompson sampling stability.
+  const alpha = Math.max(0.5, m * strength);
+  const beta = Math.max(0.5, (1 - m) * strength);
+  return {
+    category,
+    alpha,
+    beta,
+    lastUpdated: now,
+  };
+}
+
 export function posteriorVariance(alpha: number, beta: number): number {
   const s = alpha + beta;
   return (alpha * beta) / (s * s * (s + 1));
