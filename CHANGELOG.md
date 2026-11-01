@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Changed
+- Around “More nearby” (and the story card) only appear after a successful Around me.
 - Drive v2 lead time scales with speed (~4 min in town → ~15 min near highway) so teasers arrive early enough to organize a detour.
 
 ### Added

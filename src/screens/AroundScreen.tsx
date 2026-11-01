@@ -51,6 +51,8 @@ export function AroundScreen({
   const [mood, setMood] = useState<SessionMood>(null);
   const [moreBusy, setMoreBusy] = useState(false);
   const [more, setMore] = useState<NearbySuggestion[] | null>(null);
+  /** “More nearby” only after a successful Around me this visit to the tab. */
+  const [hasAroundResult, setHasAroundResult] = useState(false);
 
   useEffect(() => {
     void getSessionState().then(s => setMood(s.mood));
@@ -86,6 +88,11 @@ export function AroundScreen({
       if (next.lastLocation) {
         setMapCenter(next.lastLocation);
       }
+      setHasAroundResult(
+        Boolean(next.lastNarration?.trim() || next.lastPoiTitle?.trim()),
+      );
+    } catch {
+      setHasAroundResult(false);
     } finally {
       setBusy(false);
     }
@@ -191,34 +198,40 @@ export function AroundScreen({
         </Text>
       </Pressable>
 
-      <PlaceStoryCard
-        title={status.lastPoiTitle}
-        narration={status.lastNarration}
-        exposureId={status.lastExposureId}
-        latitude={focus?.latitude}
-        longitude={focus?.longitude}
-        mapsMode="walking"
-        busy={busy}
-        onNext={onNext}
-      />
+      {hasAroundResult ? (
+        <PlaceStoryCard
+          title={status.lastPoiTitle}
+          narration={status.lastNarration}
+          exposureId={status.lastExposureId}
+          latitude={focus?.latitude}
+          longitude={focus?.longitude}
+          mapsMode="walking"
+          busy={busy}
+          onNext={onNext}
+        />
+      ) : null}
 
-      <Pressable
-        accessibilityRole="button"
-        android_ripple={{ color: colors.ripple }}
-        style={[
-          sharedStyles.secondary,
-          (busy || moreBusy || locating) && sharedStyles.disabled,
-        ]}
-        onPress={() => {
-          void onMore();
-        }}
-        disabled={busy || moreBusy || locating}>
-        <Text style={sharedStyles.secondaryText}>
-          {moreBusy ? t('aroundMoreBusy') : t('aroundMore')}
-        </Text>
-      </Pressable>
+      {hasAroundResult ? (
+        <Pressable
+          accessibilityRole="button"
+          android_ripple={{ color: colors.ripple }}
+          style={[
+            sharedStyles.secondary,
+            (busy || moreBusy || locating) && sharedStyles.disabled,
+          ]}
+          onPress={() => {
+            void onMore();
+          }}
+          disabled={busy || moreBusy || locating}>
+          <Text style={sharedStyles.secondaryText}>
+            {moreBusy ? t('aroundMoreBusy') : t('aroundMore')}
+          </Text>
+        </Pressable>
+      ) : null}
 
-      {moreItems.length > 0 ? <PlaceAccordionList items={moreItems} /> : null}
+      {hasAroundResult && moreItems.length > 0 ? (
+        <PlaceAccordionList items={moreItems} />
+      ) : null}
     </ScrollView>
   );
 }
