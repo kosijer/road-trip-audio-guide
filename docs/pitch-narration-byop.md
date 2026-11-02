@@ -119,3 +119,91 @@ Along.
 - Keep Q7/Q8 on the entry form explicit about **Slingshot**; the video can stay light and still land the product hit in the last ~20s.
 - Prefer English for the submitted demo unless the brief asks otherwise.
 - Trim AI/Slingshot further if the cut runs over 2:00.
+
+---
+
+## YouTube — pitch / concept video (ad-style)
+
+Use this for the Filmora FOMO clip (and any cut-down ad). Link it from the slides; submit a separate **demo** video to the competition form.
+
+**Title options (pick one):**
+
+1. `Along — Hear What You’re Missing on the Road` *(recommended)*
+2. `Along — Personalized Stops Along A to B`
+3. `Missed Road → Along | Road-Trip Audio Guide Concept`
+
+**Description:**
+
+```
+Along is a road-trip audio companion: Maps still navigates — Along narrates what’s worth a stop along the way.
+
+Everyday navigation gets you from A to B. It doesn’t pitch personalized places on the route, and it doesn’t speak in time for a detour. Along fills that gap with spoken stories while you drive or walk.
+
+This short film is the concept / pitch cut (FOMO-first). For the product walkthrough, see the demo linked from the Engineering Exchange slides.
+
+Built with React Native, Google Gemini, Cloudflare Clef, and Sapient Slingshot.
+
+#Along #RoadTrip #AudioGuide #AI #Slingshot #PublicisSapient #BYOP
+```
+
+---
+
+## Demo video narration (screen recording, ≤2:00)
+
+Spoken guide over screen capture. Calm, clear, product-demo energy — not an ad.  
+Target **~1:50**. Record VO separately and lay under the recording.
+
+### Recording plan (what to show)
+
+| Time | On screen | Notes |
+|------|-----------|--------|
+| 0:00–0:20 | Google Maps: set A→B, start navigation, glance at route | No Along yet — show the “silent corridor” |
+| 0:20–0:30 | Cut to Along home / Around tab | Title card optional: “Along” |
+| 0:30–0:55 | Around: mood → Around me → story card (+ optional More nearby) | Wait for TTS or show text card |
+| 0:55–1:25 | Drive: Start Trip → Coming up → Skip or full story | Use demo motion if needed |
+| 1:25–1:40 | History: past item + 👍/👎 | Personalization beat |
+| 1:40–1:55 | Brief Settings or backlog to AI/Slingshot line | Or stay on Around while saying Slingshot |
+| 1:55–2:00 | End card: Along + tagline | Optional YouTube link on slides only |
+
+### Voiceover script
+
+**0:00 – 0:20 · The gap in normal navigation**
+
+Here’s a normal trip in Google Maps: A to B, turn-by-turn, job done.
+
+What you don’t get is the interesting stuff *between* those pins — a castle off the route, a battlefield worth two minutes, something matched to *your* taste. Navigation stays silent about the journey.
+
+**0:20 – 0:35 · Meet Along**
+
+That’s what **Along** is for.
+
+Along isn’t another navigator. Maps keeps the route. Along is the spoken companion beside it — personalized places, in time to decide.
+
+**0:35 – 0:55 · Around**
+
+Walking or stopped: open **Around**, pick a mood, tap **Around me**.
+
+Along finds what’s nearby, filters with context like weather and hours when it can, and speaks a short story. Need more options? **More nearby** lists extras without talking over you.
+
+**0:55 – 1:25 · Drive**
+
+Driving: start a trip. While you’re moving, Along looks *ahead* on your heading — not behind you.
+
+First you get a **Coming up** teaser: what it is, roughly when you’ll reach it, and Skip if you don’t care. Stay with it, and you get the full narration before you’ve already passed.
+
+That’s the stop Maps never pitched.
+
+**1:25 – 1:40 · History & taste**
+
+Every story lands in **History**. Thumbs up or down feed a taste model, so the next suggestions skew toward what you actually like — not a generic tourist list.
+
+**1:40 – 1:55 · Under the hood (short)**
+
+Under the hood: POIs from open knowledge sources, optional Cloudflare **Clef** to pick what matters, **Gemini** to write the spoken script, on-device TTS to play it.
+
+For Around, we can also run narration through **Sapient Slingshot** — a real workflow: weather, pick, details, narration, packaged result — inside the app, not a slide.
+
+**1:55 – 2:00 · Close**
+
+Along: hear what’s along the way — while you can still turn.
+
