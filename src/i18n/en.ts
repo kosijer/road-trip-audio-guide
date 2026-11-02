@@ -152,6 +152,10 @@ export const en: Record<StringKey, string> = {
   noPoi: 'No sufficiently interesting places nearby right now.',
   locationFailed: 'Could not determine location. Turn location on and try again.',
   llmFailed: 'Could not create a story. Please try again.',
+  slingshotBusy: 'Asking the Slingshot guide…',
+  slingshotMisconfigured:
+    'Slingshot is selected but PAT / task / workflow are not configured.',
+  slingshotFailed: 'Slingshot guide failed. Try again or switch to local.',
   offlineSkip: 'No network — skipping this interval.',
   llmCap: 'Story limit reached for this trip.',
   ttsMissing:

@@ -1,6 +1,7 @@
 import { DeviceEventEmitter } from 'react-native';
 import { config } from '../config';
-import { t } from '../i18n';
+import { getNarrationLanguage, t } from '../i18n';
+import { getSessionState } from '../preferences';
 import type { LocationSample, Poi, TripStatus } from '../types';
 import { effectiveSpeedKmh, evaluateMoving } from './motion';
 import {
@@ -34,6 +35,11 @@ import {
   resetDriveQueue,
   skipDriveTeaser,
 } from './driveQueue';
+import {
+  runRoadGuideWorkflow,
+  SlingshotConfigError,
+  slingshotConfigured,
+} from './slingshot';
 import { speak, stopSpeaking } from './tts';
 import { getWeather } from './weather';
 
@@ -315,11 +321,93 @@ async function narrateFixedPoi(poi: Poi): Promise<void> {
   await next;
 }
 
+function slingshotMoodLabel(mood: string | null | undefined): string {
+  if (mood === 'history' || mood === 'nature' || mood === 'surprise') {
+    return mood;
+  }
+  return 'curious';
+}
+
+async function narrateViaSlingshot(location: LocationSample): Promise<void> {
+  if (!slingshotConfigured()) {
+    await patch({ message: t('slingshotMisconfigured') });
+    return;
+  }
+  const calls = await getLlmCalls();
+  if (calls >= config.maxLlmCallsPerTrip) {
+    await patch({ message: t('llmCap') });
+    return;
+  }
+
+  let weatherLat = location.latitude;
+  let weatherLon = location.longitude;
+  try {
+    const real = await getRealLocation();
+    weatherLat = real.latitude;
+    weatherLon = real.longitude;
+  } catch {
+    // Keep trip location if real GPS is unavailable.
+  }
+
+  await patch({ message: t('slingshotBusy') });
+  const session = await getSessionState();
+  try {
+    const packaged = await runRoadGuideWorkflow({
+      latitude: weatherLat,
+      longitude: weatherLon,
+      language: getNarrationLanguage(),
+      mood: slingshotMoodLabel(session.mood),
+      mode: 'walk',
+      radiusMeters: config.walkingPoiRadiusM,
+    });
+    await incrementLlmCalls();
+    const place = packaged.place;
+    const poi: Poi = {
+      id: `wiki:${place.pageid}`,
+      title: place.title,
+      summary: place.why || packaged.narration.script.slice(0, 280),
+      location: { latitude: place.lat, longitude: place.lon },
+      source: 'wikipedia',
+      extractLength: packaged.narration.script.length,
+      isOutdoor: true,
+      isIndoorVenue: false,
+      distanceM: place.distMeters,
+      weatherCaveat: packaged.weather.caution || undefined,
+    };
+    const extras: string[] = [];
+    if (packaged.weather.caution) {
+      extras.push(packaged.weather.caution);
+    } else if (
+      packaged.weather.rainingNow ||
+      packaged.weather.rainRisk === 'medium' ||
+      packaged.weather.rainRisk === 'high'
+    ) {
+      extras.push(packaged.weather.summary);
+    }
+    await deliverNarration([poi], 'walking', {
+      extras,
+      preparedText: packaged.narration.script,
+    });
+  } catch (error) {
+    console.warn('slingshot narration failed', error);
+    if (error instanceof SlingshotConfigError) {
+      await patch({ message: t('slingshotMisconfigured') });
+      return;
+    }
+    await patch({ message: t('slingshotFailed') });
+  }
+}
+
 async function narrateOnce(
   location: LocationSample,
   mode: 'driving' | 'walking',
   opts?: { skipHeard?: boolean },
 ): Promise<void> {
+  if (mode === 'walking' && config.narrationBackend === 'slingshot') {
+    await narrateViaSlingshot(location);
+    return;
+  }
+
   const skipHeard = mode === 'driving' || Boolean(opts?.skipHeard);
   const radius =
     mode === 'walking' ? config.walkingPoiRadiusM : config.drivingPoiRadiusM;
@@ -418,13 +506,12 @@ async function narrateOnce(
 async function deliverNarration(
   selected: Poi[],
   mode: 'driving' | 'walking',
-  opts: { extras: string[]; skipNewExposure?: boolean },
+  opts: { extras: string[]; skipNewExposure?: boolean; preparedText?: string },
 ): Promise<void> {
   const extras = opts.extras;
   // v2: bust scripts that hallucinated weather before the rain-prompt fix.
   const cacheKey = `v2|${selected.map(p => p.id).join('|')}`;
-  const cached = await getNarration(cacheKey);
-  let text = cached;
+  let text = opts.preparedText?.trim() || (await getNarration(cacheKey));
   if (!text) {
     const calls = await getLlmCalls();
     if (calls >= config.maxLlmCallsPerTrip) {
@@ -440,6 +527,8 @@ async function deliverNarration(
       await patch({ message: t('llmFailed') });
       return;
     }
+  } else if (opts.preparedText) {
+    await saveNarration(cacheKey, text);
   }
   for (const poi of selected) {
     await markNarrated(poi.id);

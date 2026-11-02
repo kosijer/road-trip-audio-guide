@@ -14,4 +14,9 @@ module.exports = {
   WALKING_POI_RADIUS_M: '800',
   MAX_LLM_CALLS_PER_TRIP: '30',
   DRIVE_TEASER_HOLD_MS: '10000',
+  NARRATION_BACKEND: 'local',
+  SLINGSHOT_PAT: '',
+  SLINGSHOT_BASE_URL: 'https://sapientaiproducts.com/save/api/v1',
+  SLINGSHOT_TASK_ID: '',
+  SLINGSHOT_WORKFLOW_ID: '',
 };

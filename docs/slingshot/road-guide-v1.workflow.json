@@ -1,0 +1,894 @@
+{
+  "nodes": [
+    {
+      "id": "d1",
+      "data": {
+        "input": {
+          "variables": [
+            {
+              "name": "latitude",
+              "type": "number",
+              "value": "44.7866",
+              "description": "User's latitude"
+            },
+            {
+              "name": "longitude",
+              "type": "number",
+              "value": "20.4489",
+              "description": "User's longitude"
+            },
+            {
+              "name": "language",
+              "type": "string",
+              "value": "en",
+              "description": "Prompt langugage"
+            },
+            {
+              "name": "mood",
+              "type": "string",
+              "value": "curious",
+              "description": ""
+            },
+            {
+              "name": "mode",
+              "type": "string",
+              "value": "walk",
+              "description": ""
+            },
+            {
+              "name": "radiusMeters",
+              "type": "number",
+              "value": "2000",
+              "description": ""
+            }
+          ],
+          "description": "workflow variables"
+        },
+        "label": "start",
+        "output": {
+          "data": {
+            "mode": "walk",
+            "mood": "curious",
+            "language": "en",
+            "latitude": "44.7866",
+            "longitude": "20.4489",
+            "radiusMeters": "2000"
+          }
+        },
+        "variables": [
+          {
+            "name": "latitude",
+            "path": "latitude",
+            "type": "number",
+            "description": "Custom Variable latitude of type number"
+          },
+          {
+            "name": "longitude",
+            "path": "longitude",
+            "type": "number",
+            "description": "Custom Variable longitude of type number"
+          },
+          {
+            "name": "language",
+            "path": "language",
+            "type": "string",
+            "description": "Custom Variable language of type string"
+          },
+          {
+            "name": "mood",
+            "path": "mood",
+            "type": "string",
+            "description": "Custom Variable mood of type string"
+          },
+          {
+            "name": "mode",
+            "path": "mode",
+            "type": "string",
+            "description": "Custom Variable mode of type string"
+          },
+          {
+            "name": "radiusMeters",
+            "path": "radiusMeters",
+            "type": "number",
+            "description": "Custom Variable radiusMeters of type number"
+          }
+        ],
+        "layoutDirection": "LR",
+        "auxiliaryHandlePosition": "bottom"
+      },
+      "type": "control-start",
+      "dragging": false,
+      "measured": {
+        "width": 32,
+        "height": 32
+      },
+      "position": {
+        "x": 0,
+        "y": 35
+      },
+      "selected": false,
+      "deletable": false,
+      "sourcePosition": "right",
+      "targetPosition": "left"
+    },
+    {
+      "id": "d2",
+      "data": {
+        "label": "End",
+        "layoutDirection": "LR",
+        "auxiliaryHandlePosition": "bottom"
+      },
+      "type": "control-end",
+      "measured": {
+        "width": 32,
+        "height": 32
+      },
+      "position": {
+        "x": 3112,
+        "y": 35
+      },
+      "deletable": false,
+      "sourcePosition": "right",
+      "targetPosition": "left"
+    },
+    {
+      "id": "0be4f8e8-36de-4cf2-90f2-50af2d850016",
+      "data": {
+        "input": {
+          "method": "GET",
+          "url": "https://api.open-meteo.com/v1/forecast?latitude={{$var[latitude]n}}&longitude={{$var[longitude]n}}&current=temperature_2m,precipitation,rain,weather_code&hourly=precipitation_probability,precipitation,temperature_2m&forecast_days=1&timezone=auto",
+          "authorization": "",
+          "bodyType": "raw",
+          "body": "",
+          "formFields": [],
+          "headers": {}
+        },
+        "label": "Open Meteo Request",
+        "variables": [
+          {
+            "name": "response",
+            "type": "object",
+            "path": "data.response",
+            "description": "The Http response object"
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "path": "status",
+            "description": "The status of the request (success/error)"
+          },
+          {
+            "name": "HTTP status code",
+            "type": "number",
+            "path": "data.status",
+            "description": "The HTTP response status code"
+          },
+          {
+            "name": "HTTP statusText",
+            "type": "string",
+            "path": "data.statusText",
+            "description": "The HTTP response status text"
+          },
+          {
+            "name": "contentType",
+            "type": "string",
+            "path": "data.contentType",
+            "description": "HTTP response content type"
+          }
+        ],
+        "layoutDirection": "LR",
+        "auxiliaryHandlePosition": "bottom"
+      },
+      "type": "http",
+      "dragging": false,
+      "measured": {
+        "width": 240,
+        "height": 62
+      },
+      "position": {
+        "x": 130,
+        "y": 20
+      },
+      "selected": false,
+      "sourcePosition": "right",
+      "targetPosition": "left"
+    },
+    {
+      "id": "9b6d342a-1665-4a55-8f2c-e16ace8da9ba",
+      "data": {
+        "type": "llm",
+        "input": {
+          "systemInstruction": "You are a concise outdoor companion for a road-trip / walking audio guide app called Along.\n\nGiven live weather for the user's location, interpret conditions and suggest what they can realistically do in the next 1-2 hours.\n\n\n\nRules:\n\n- Be practical and local-feeling, not generic lifestyle advice.\n\n- Prefer short outdoor options if rain risk is low; otherwise suggest covered / indoor-friendly alternatives.\n\n- Do not invent POIs, street names, or exact places.\n\n- Do not give navigation instructions.\n\n- Mention rain only if precipitation or probability clearly supports it.\n\n- Reply in the language specified by the language input (ISO-like code or language name).\n\n- Adapt tone to mood (e.g. curious, chill, energetic, romantic, family).\n\n- Respect mode (walk vs drive): for drive, prefer short stop / viewpoint style suggestions; for walk, prefer nearby stroll options.\n\n- Return ONLY valid JSON. No markdown. No extra keys.\n\n- Use EXACTLY these keys and types.",
+          "prompt": "language: {{$var[language]}}\n\nmode: {{$var[mode]}}\n\nmood: {{$var[mood]}}\n\n\n\nLocation timezone: {{HTTP Request[data.response.timezone]}}\n\n\n\nCurrent weather JSON:\n\n{{HTTP Request[data.response.current]}}\n\n\n\nNext hours:\n\ntimes: {{HTTP Request[data.response.hourly.time]}}\n\ntemperature_2m: {{HTTP Request[data.response.hourly.temperature_2m]}}\n\nprecipitation: {{HTTP Request[data.response.hourly.precipitation]}}\n\nprecipitation_probability: {{HTTP Request[data.response.hourly.precipitation_probability]}}\n\n\n\nReturn ONLY this JSON shape:\n\n{\n\n  \"summary\": \"one short sentence about current conditions\",\n\n  \"rainRisk\": \"none|low|medium|high\",\n\n  \"rainingNow\": false,\n\n  \"suggestions\": [\n\n    {\n\n      \"title\": \"short title\",\n\n      \"why\": \"one short reason tied to weather/mood/mode\",\n\n      \"indoorFriendly\": false\n\n    }\n\n  ],\n\n  \"caution\": null\n\n}\n\n\n\nConstraints:\n\n- suggestions must contain exactly 3 items\n\n- caution is string or null\n\n- rainingNow is boolean\n\n- rainRisk must be one of: none, low, medium, high",
+          "model": "gpt-4o-mini"
+        },
+        "label": "Weather Coach",
+        "output": {
+          "data": {
+            "response": "",
+            "fullResponse": {
+              "model": "gpt-4o-mini",
+              "usage": {
+                "total_tokens": 0,
+                "prompt_tokens": 0,
+                "completion_tokens": 0
+              },
+              "choices": [
+                {
+                  "message": {
+                    "content": ""
+                  }
+                }
+              ]
+            }
+          },
+          "variables": [
+            {
+              "name": "response",
+              "path": "data.response",
+              "type": "string",
+              "description": "The text response from the LLM model"
+            },
+            {
+              "name": "fullResponse",
+              "path": "data.fullResponse",
+              "type": "object",
+              "description": "The full response object from the LLM model"
+            },
+            {
+              "name": "usage",
+              "path": "data.fullResponse.usage",
+              "type": "object",
+              "description": "Token usage details from the LLM model"
+            },
+            {
+              "name": "prompt_tokens",
+              "path": "data.fullResponse.usage.prompt_tokens",
+              "type": "number",
+              "description": "Number of tokens used in the prompt"
+            },
+            {
+              "name": "completion_tokens",
+              "path": "data.fullResponse.usage.completion_tokens",
+              "type": "number",
+              "description": "Number of tokens used in the completion"
+            },
+            {
+              "name": "total_tokens",
+              "path": "data.fullResponse.usage.total_tokens",
+              "type": "number",
+              "description": "Total number of tokens used"
+            }
+          ]
+        },
+        "status": "valid",
+        "variables": [
+          {
+            "name": "response",
+            "type": "string",
+            "path": "data.response",
+            "description": "The text response from the LLM model"
+          },
+          {
+            "name": "fullResponse",
+            "type": "object",
+            "path": "data.fullResponse",
+            "description": "The full response object from the LLM model"
+          },
+          {
+            "name": "usage",
+            "type": "object",
+            "path": "data.fullResponse.usage",
+            "description": "Token usage details from the LLM model"
+          },
+          {
+            "name": "prompt_tokens",
+            "type": "number",
+            "path": "data.fullResponse.usage.prompt_tokens",
+            "description": "Number of tokens used in the prompt"
+          },
+          {
+            "name": "completion_tokens",
+            "type": "number",
+            "path": "data.fullResponse.usage.completion_tokens",
+            "description": "Number of tokens used in the completion"
+          },
+          {
+            "name": "total_tokens",
+            "type": "number",
+            "path": "data.fullResponse.usage.total_tokens",
+            "description": "Total number of tokens used"
+          }
+        ],
+        "input_schema": {},
+        "output_schema": {},
+        "layoutDirection": "LR",
+        "auxiliaryHandlePosition": "bottom"
+      },
+      "type": "llm",
+      "dragging": false,
+      "measured": {
+        "width": 240,
+        "height": 62
+      },
+      "position": {
+        "x": 472,
+        "y": 20
+      },
+      "selected": false,
+      "sourcePosition": "right",
+      "targetPosition": "left"
+    },
+    {
+      "id": "b7fe64e8-a83a-4d35-9b70-bb53132ee013",
+      "data": {
+        "input": {
+          "method": "GET",
+          "url": "https://en.wikipedia.org/w/api.php?action=query&list=geosearch&gscoord={{$var[latitude]n}}|{{$var[longitude]n}}&gsradius={{$var[radiusMeters]n}}&gslimit=8&format=json&origin=*",
+          "authorization": "",
+          "bodyType": "raw",
+          "body": "",
+          "formFields": [],
+          "headers": {}
+        },
+        "label": "POI Search",
+        "variables": [
+          {
+            "name": "response",
+            "type": "object",
+            "path": "data.response",
+            "description": "The Http response object"
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "path": "status",
+            "description": "The status of the request (success/error)"
+          },
+          {
+            "name": "HTTP status code",
+            "type": "number",
+            "path": "data.status",
+            "description": "The HTTP response status code"
+          },
+          {
+            "name": "HTTP statusText",
+            "type": "string",
+            "path": "data.statusText",
+            "description": "The HTTP response status text"
+          },
+          {
+            "name": "contentType",
+            "type": "string",
+            "path": "data.contentType",
+            "description": "HTTP response content type"
+          }
+        ],
+        "layoutDirection": "LR",
+        "auxiliaryHandlePosition": "bottom"
+      },
+      "type": "http",
+      "dragging": false,
+      "measured": {
+        "width": 240,
+        "height": 62
+      },
+      "position": {
+        "x": 812,
+        "y": 20
+      },
+      "selected": false,
+      "sourcePosition": "right",
+      "targetPosition": "left"
+    },
+    {
+      "id": "60133d57-9939-4f3f-a2e6-9aba88a81697",
+      "data": {
+        "type": "llm",
+        "input": {
+          "systemInstruction": "You are the place-picker for Along, a walking/driving audio guide.\n\nYou receive nearby Wikipedia geosearch candidates plus a weather interpretation.\n\nPick exactly ONE place from the provided candidate list.\n\n\n\nRules:\n\n- Choose ONLY from the given candidates. Never invent a place.\n\n- Prefer places that fit mood, mode, and weather.\n\n- For walk: closer places are better unless another option fits mood much better.\n\n- For drive: prefer distinctive landmarks / viewpoints over tiny local venues when possible.\n\n- If rainRisk is medium/high or rainingNow is true, prefer indoor-friendly sounding places when available; otherwise still pick the best outdoor option and say so in why.\n\n- Reply in the language specified by language.\n\n- Return ONLY valid JSON. No markdown. No extra keys.\n\n- Use EXACTLY the schema keys and types requested in the user prompt.",
+          "prompt": "language: {{$var[language]}}\n\nmode: {{$var[mode]}}\n\nmood: {{$var[mood]}}\n\n\n\nWeather interpretation JSON:\n\n{{Weather Coach[data.response]}}\n\n\n\nCandidates (Wikipedia geosearch):\n\n{{POI Search[data.response.query.geosearch]}}\n\n\n\nPick exactly one candidate.\n\n\n\nReturn ONLY this JSON shape:\n\n{\n\n  \"pageid\": 0,\n\n  \"title\": \"exact title from candidate\",\n\n  \"lat\": 0,\n\n  \"lon\": 0,\n\n  \"distMeters\": 0,\n\n  \"why\": \"one short reason in the requested language\",\n\n  \"fitsWeather\": true\n\n}\n\n\n\nConstraints:\n\n- pageid, lat, lon, distMeters must come from the chosen candidate (use candidate.dist for distMeters)\n\n- title must match the candidate title exactly\n\n- fitsWeather is boolean\n\n- why max ~25 words\n",
+          "model": "gpt-4o-mini"
+        },
+        "label": "Pick POI",
+        "output": {
+          "data": {
+            "response": "",
+            "fullResponse": {
+              "model": "gpt-4o-mini",
+              "usage": {
+                "total_tokens": 0,
+                "prompt_tokens": 0,
+                "completion_tokens": 0
+              },
+              "choices": [
+                {
+                  "message": {
+                    "content": ""
+                  }
+                }
+              ]
+            }
+          },
+          "variables": [
+            {
+              "name": "response",
+              "path": "data.response",
+              "type": "string",
+              "description": "The text response from the LLM model"
+            },
+            {
+              "name": "fullResponse",
+              "path": "data.fullResponse",
+              "type": "object",
+              "description": "The full response object from the LLM model"
+            },
+            {
+              "name": "usage",
+              "path": "data.fullResponse.usage",
+              "type": "object",
+              "description": "Token usage details from the LLM model"
+            },
+            {
+              "name": "prompt_tokens",
+              "path": "data.fullResponse.usage.prompt_tokens",
+              "type": "number",
+              "description": "Number of tokens used in the prompt"
+            },
+            {
+              "name": "completion_tokens",
+              "path": "data.fullResponse.usage.completion_tokens",
+              "type": "number",
+              "description": "Number of tokens used in the completion"
+            },
+            {
+              "name": "total_tokens",
+              "path": "data.fullResponse.usage.total_tokens",
+              "type": "number",
+              "description": "Total number of tokens used"
+            }
+          ]
+        },
+        "status": "valid",
+        "variables": [
+          {
+            "name": "response",
+            "type": "string",
+            "path": "data.response",
+            "description": "The text response from the LLM model"
+          },
+          {
+            "name": "fullResponse",
+            "type": "object",
+            "path": "data.fullResponse",
+            "description": "The full response object from the LLM model"
+          },
+          {
+            "name": "usage",
+            "type": "object",
+            "path": "data.fullResponse.usage",
+            "description": "Token usage details from the LLM model"
+          },
+          {
+            "name": "prompt_tokens",
+            "type": "number",
+            "path": "data.fullResponse.usage.prompt_tokens",
+            "description": "Number of tokens used in the prompt"
+          },
+          {
+            "name": "completion_tokens",
+            "type": "number",
+            "path": "data.fullResponse.usage.completion_tokens",
+            "description": "Number of tokens used in the completion"
+          },
+          {
+            "name": "total_tokens",
+            "type": "number",
+            "path": "data.fullResponse.usage.total_tokens",
+            "description": "Total number of tokens used"
+          }
+        ],
+        "input_schema": {},
+        "output_schema": {},
+        "layoutDirection": "LR",
+        "auxiliaryHandlePosition": "bottom"
+      },
+      "type": "llm",
+      "measured": {
+        "width": 240,
+        "height": 62
+      },
+      "position": {
+        "x": 1152,
+        "y": 20
+      },
+      "selected": false,
+      "sourcePosition": "right",
+      "targetPosition": "left"
+    },
+    {
+      "id": "3350f181-787a-490f-91c3-fbe19b952913",
+      "data": {
+        "input": {
+          "method": "GET",
+          "url": "https://en.wikipedia.org/w/api.php?action=query&pageids={{$var[pageid]n}}&prop=extracts|pageprops|coordinates&explaintext=1&exintro=1&ppprop=wikibase_item&format=json&origin=*",
+          "authorization": "",
+          "bodyType": "raw",
+          "body": "",
+          "formFields": [],
+          "headers": {}
+        },
+        "label": "POI Details",
+        "variables": [
+          {
+            "name": "response",
+            "type": "object",
+            "path": "data.response",
+            "description": "The Http response object"
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "path": "status",
+            "description": "The status of the request (success/error)"
+          },
+          {
+            "name": "HTTP status code",
+            "type": "number",
+            "path": "data.status",
+            "description": "The HTTP response status code"
+          },
+          {
+            "name": "HTTP statusText",
+            "type": "string",
+            "path": "data.statusText",
+            "description": "The HTTP response status text"
+          },
+          {
+            "name": "contentType",
+            "type": "string",
+            "path": "data.contentType",
+            "description": "HTTP response content type"
+          }
+        ],
+        "layoutDirection": "LR",
+        "auxiliaryHandlePosition": "bottom"
+      },
+      "type": "http",
+      "dragging": false,
+      "measured": {
+        "width": 240,
+        "height": 62
+      },
+      "position": {
+        "x": 2132,
+        "y": 20
+      },
+      "selected": false,
+      "sourcePosition": "right",
+      "targetPosition": "left"
+    },
+    {
+      "id": "7662111a-465d-4eb3-a18b-1f5180d16139",
+      "data": {
+        "type": "nodejs",
+        "input": {
+          "script": "let raw = {{Pick POI[data.response]}};\nif (typeof raw === \"string\") {\n  raw = JSON.parse(raw);\n}\nif (typeof raw === \"string\") {\n  raw = JSON.parse(raw); // double-encoded fallback\n}\nprocess.stdout.write(String(raw.pageid));",
+          "timeout": 120000
+        },
+        "label": "Parse Pick",
+        "output": {
+          "data": {
+            "stderr": "",
+            "stdout": ""
+          }
+        },
+        "variables": [
+          {
+            "name": "stdout",
+            "type": "string",
+            "path": "data.stdout",
+            "description": "Standard output from the script execution"
+          },
+          {
+            "name": "stderr",
+            "type": "string",
+            "path": "data.stderr",
+            "description": "Standard error output from the script execution"
+          }
+        ],
+        "layoutDirection": "LR",
+        "auxiliaryHandlePosition": "bottom"
+      },
+      "type": "script",
+      "width": 200,
+      "height": 102,
+      "measured": {
+        "width": 200,
+        "height": 102
+      },
+      "position": {
+        "x": 1492,
+        "y": 0
+      },
+      "selected": false,
+      "sourcePosition": "right",
+      "targetPosition": "left"
+    },
+    {
+      "id": "15af1621-745a-48c1-85a2-f85ad3757f9a",
+      "data": {
+        "input": {
+          "variableName": "pageid",
+          "expression": "JSON.parse({{Pick POI[data.response]}}).pageid"
+        },
+        "label": "pageid",
+        "variables": [
+          {
+            "name": "pageid",
+            "path": "data.response[\"pageid\"]",
+            "type": "string",
+            "default": "",
+            "description": ""
+          }
+        ],
+        "layoutDirection": "LR",
+        "auxiliaryHandlePosition": "bottom"
+      },
+      "type": "set-variable",
+      "dragging": false,
+      "measured": {
+        "width": 240,
+        "height": 62
+      },
+      "position": {
+        "x": 1792,
+        "y": 20
+      },
+      "selected": false,
+      "sourcePosition": "right",
+      "targetPosition": "left"
+    },
+    {
+      "id": "40a2c5ad-c7c7-4828-900b-8d7b779ebfaa",
+      "data": {
+        "type": "llm",
+        "input": {
+          "systemInstruction": "You are a mobile audio travel guide for an app called Along.\n\nYou write ONE short narration meant to be spoken aloud by text-to-speech.\n\n\n\nRules:\n\n- Speak in the language requested by the language input.\n\n- No markdown, no bullet points, no title, no emojis.\n\n- Write for the ear: natural sentences, easy to follow while walking or riding.\n\n- Length: about 30-60 seconds spoken (roughly 80-140 words).\n\n- Use only facts present in the provided source text. Do not invent precise dates, names, or claims.\n\n- Only mention rain/weather if Weather interpretation clearly indicates rain risk or rainingNow.\n\n- Do not give turn-by-turn navigation.\n\n- Do not invent nearby street names or POIs that are not in the source.\n\n- Return ONLY valid JSON. No markdown fences. No extra keys.",
+          "prompt": "language: {{$var[language]}}\n\nmode: {{$var[mode]}}\n\nmood: {{$var[mood]}}\n\n\n\nWeather interpretation JSON:\n\n{{Weather Coach[data.response]}}\n\n\n\nChosen place JSON:\n\n{{Pick POI[data.response]}}\n\n\n\nWikipedia page payload:\n\n{{POI Details[data.response.query.pages]}}\n\n\n\nMode guidance:\n\n- If mode is walk: speak as a walking guide (\"nearby\", \"from here\", \"as you walk\"). Never mention driving/cars.\n\n- If mode is drive: speak as a passenger guide (\"coming up\", \"as we pass\"). Do not tell them to get out unless it is clearly a stop.\n\n\n\nMood guidance:\n\n- curious: unexpected detail, invite attention\n\n- chill: calm, atmospheric\n\n- energetic: vivid, upbeat\n\n- romantic: softer, scenic\n\n- family: simple, welcoming\n\n- nature: landscape/outdoors first\n\n- history: historical context first\n\n- surprise: avoid the most obvious tourist spiel\n\n\n\nReturn ONLY this JSON shape:\n\n{\n\n  \"script\": \"spoken narration text only\",\n\n  \"wordCount\": 0,\n\n  \"placeTitle\": \"exact place title\",\n\n  \"language\": \"same as input language\"\n\n}\n\n\n\nConstraints:\n\n- script must be plain spoken text\n\n- wordCount must be the integer word count of script\n\n- placeTitle must match the chosen place title",
+          "model": "gpt-4o-mini"
+        },
+        "label": "Narration",
+        "output": {
+          "data": {
+            "response": "",
+            "fullResponse": {
+              "model": "gpt-4o-mini",
+              "usage": {
+                "total_tokens": 0,
+                "prompt_tokens": 0,
+                "completion_tokens": 0
+              },
+              "choices": [
+                {
+                  "message": {
+                    "content": ""
+                  }
+                }
+              ]
+            }
+          },
+          "variables": [
+            {
+              "name": "response",
+              "path": "data.response",
+              "type": "string",
+              "description": "The text response from the LLM model"
+            },
+            {
+              "name": "fullResponse",
+              "path": "data.fullResponse",
+              "type": "object",
+              "description": "The full response object from the LLM model"
+            },
+            {
+              "name": "usage",
+              "path": "data.fullResponse.usage",
+              "type": "object",
+              "description": "Token usage details from the LLM model"
+            },
+            {
+              "name": "prompt_tokens",
+              "path": "data.fullResponse.usage.prompt_tokens",
+              "type": "number",
+              "description": "Number of tokens used in the prompt"
+            },
+            {
+              "name": "completion_tokens",
+              "path": "data.fullResponse.usage.completion_tokens",
+              "type": "number",
+              "description": "Number of tokens used in the completion"
+            },
+            {
+              "name": "total_tokens",
+              "path": "data.fullResponse.usage.total_tokens",
+              "type": "number",
+              "description": "Total number of tokens used"
+            }
+          ]
+        },
+        "status": "valid",
+        "variables": [
+          {
+            "name": "response",
+            "type": "string",
+            "path": "data.response",
+            "description": "The text response from the LLM model"
+          },
+          {
+            "name": "fullResponse",
+            "type": "object",
+            "path": "data.fullResponse",
+            "description": "The full response object from the LLM model"
+          },
+          {
+            "name": "usage",
+            "type": "object",
+            "path": "data.fullResponse.usage",
+            "description": "Token usage details from the LLM model"
+          },
+          {
+            "name": "prompt_tokens",
+            "type": "number",
+            "path": "data.fullResponse.usage.prompt_tokens",
+            "description": "Number of tokens used in the prompt"
+          },
+          {
+            "name": "completion_tokens",
+            "type": "number",
+            "path": "data.fullResponse.usage.completion_tokens",
+            "description": "Number of tokens used in the completion"
+          },
+          {
+            "name": "total_tokens",
+            "type": "number",
+            "path": "data.fullResponse.usage.total_tokens",
+            "description": "Total number of tokens used"
+          }
+        ],
+        "input_schema": {},
+        "output_schema": {},
+        "layoutDirection": "LR",
+        "auxiliaryHandlePosition": "bottom"
+      },
+      "type": "llm",
+      "dragging": false,
+      "measured": {
+        "width": 240,
+        "height": 62
+      },
+      "position": {
+        "x": 2472,
+        "y": 20
+      },
+      "selected": false,
+      "sourcePosition": "right",
+      "targetPosition": "left"
+    },
+    {
+      "id": "c9c030f2-cf42-48b6-a2c5-c2c9dcb54f28",
+      "data": {
+        "type": "nodejs",
+        "input": {
+          "script": "function parseMaybe(v) {\n  let x = v;\n  if (typeof x === \"string\") x = JSON.parse(x);\n  if (typeof x === \"string\") x = JSON.parse(x);\n  return x;\n}\n\nconst weather = parseMaybe({{Weather Coach[data.response]}});\nconst pick = parseMaybe({{Pick POI[data.response]}});\nconst narration = parseMaybe({{Narration[data.response]}});\n\nconst result = {\n  ok: true,\n  input: {\n    latitude: Number({{$var[latitude]n}}),\n    longitude: Number({{$var[longitude]n}}),\n    language: {{$var[language]}},\n    mood: {{$var[mood]}},\n    mode: {{$var[mode]}},\n    radiusMeters: Number({{$var[radiusMeters]n}})\n  },\n  weather,\n  place: pick,\n  narration\n};\n\nprocess.stdout.write(JSON.stringify(result));",
+          "timeout": 120000
+        },
+        "label": "Package Result",
+        "output": {
+          "data": {
+            "stderr": "",
+            "stdout": ""
+          }
+        },
+        "variables": [
+          {
+            "name": "stdout",
+            "type": "string",
+            "path": "data.stdout",
+            "description": "Standard output from the script execution"
+          },
+          {
+            "name": "stderr",
+            "type": "string",
+            "path": "data.stderr",
+            "description": "Standard error output from the script execution"
+          }
+        ],
+        "layoutDirection": "LR",
+        "auxiliaryHandlePosition": "bottom"
+      },
+      "type": "script",
+      "width": 200,
+      "height": 102,
+      "dragging": false,
+      "measured": {
+        "width": 200,
+        "height": 102
+      },
+      "position": {
+        "x": 2810,
+        "y": 0
+      },
+      "selected": false,
+      "sourcePosition": "right",
+      "targetPosition": "left"
+    }
+  ],
+  "edges": [
+    {
+      "id": "5fa30794-293e-4d7e-b4f8-993959501a17",
+      "type": "add-edge",
+      "source": "d1",
+      "target": "0be4f8e8-36de-4cf2-90f2-50af2d850016"
+    },
+    {
+      "id": "4531daf4-3b18-43ab-8c31-9f7d8bdd98f4",
+      "type": "add-edge",
+      "source": "0be4f8e8-36de-4cf2-90f2-50af2d850016",
+      "target": "9b6d342a-1665-4a55-8f2c-e16ace8da9ba"
+    },
+    {
+      "id": "9b6d342a-1665-4a55-8f2c-e16ace8da9ba->b7fe64e8-a83a-4d35-9b70-bb53132ee013",
+      "type": "add-edge",
+      "source": "9b6d342a-1665-4a55-8f2c-e16ace8da9ba",
+      "target": "b7fe64e8-a83a-4d35-9b70-bb53132ee013"
+    },
+    {
+      "id": "5d485594-754e-4a4b-9c86-3ab741a2a61e",
+      "type": "add-edge",
+      "source": "b7fe64e8-a83a-4d35-9b70-bb53132ee013",
+      "target": "60133d57-9939-4f3f-a2e6-9aba88a81697"
+    },
+    {
+      "id": "bb6e6b2c-1475-4b47-a506-af3ded30a18b",
+      "type": "add-edge",
+      "source": "60133d57-9939-4f3f-a2e6-9aba88a81697",
+      "target": "7662111a-465d-4eb3-a18b-1f5180d16139"
+    },
+    {
+      "id": "f819c725-c1e5-4e66-b0d2-8550d36191fc",
+      "type": "add-edge",
+      "source": "7662111a-465d-4eb3-a18b-1f5180d16139",
+      "target": "15af1621-745a-48c1-85a2-f85ad3757f9a"
+    },
+    {
+      "id": "4b2a9f53-a2c7-434b-bdf7-d2c6b9b5bce6",
+      "type": "add-edge",
+      "source": "15af1621-745a-48c1-85a2-f85ad3757f9a",
+      "target": "3350f181-787a-490f-91c3-fbe19b952913"
+    },
+    {
+      "id": "67dacd02-60d1-439b-b0ae-6a682fd1e529",
+      "type": "add-edge",
+      "source": "3350f181-787a-490f-91c3-fbe19b952913",
+      "target": "40a2c5ad-c7c7-4828-900b-8d7b779ebfaa"
+    },
+    {
+      "id": "1546cb1e-5b9d-4301-99a6-000500e70ffb",
+      "type": "add-edge",
+      "source": "40a2c5ad-c7c7-4828-900b-8d7b779ebfaa",
+      "target": "c9c030f2-cf42-48b6-a2c5-c2c9dcb54f28"
+    },
+    {
+      "id": "0d590727-fa0e-4891-900e-de141a569a15",
+      "type": "add-edge",
+      "source": "c9c030f2-cf42-48b6-a2c5-c2c9dcb54f28",
+      "target": "d2"
+    }
+  ],
+  "viewport": {
+    "x": 133,
+    "y": 338.3606870229008,
+    "zoom": 0.4243002544529262
+  }
+}

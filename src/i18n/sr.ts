@@ -153,6 +153,10 @@ export const sr: Record<StringKey, string> = {
   locationFailed:
     'Ne mogu da odredim lokaciju. Uključite lokaciju i pokušajte ponovo.',
   llmFailed: 'Nisam uspeo da napravim priču. Pokušajte ponovo.',
+  slingshotBusy: 'Pitam Slingshot vodiča…',
+  slingshotMisconfigured:
+    'Slingshot je izabran, ali PAT / task / workflow nisu podešeni.',
+  slingshotFailed: 'Slingshot vodič nije uspeo. Pokušajte ponovo ili local.',
   offlineSkip: 'Nema mreže — preskačem ovaj interval.',
   llmCap: 'Dostignut je limit priča za ovu vožnju.',
   ttsMissing:

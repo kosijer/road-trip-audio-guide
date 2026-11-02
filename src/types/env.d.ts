@@ -14,4 +14,9 @@ declare module '@env' {
   export const WALKING_POI_RADIUS_M: string;
   export const MAX_LLM_CALLS_PER_TRIP: string;
   export const DRIVE_TEASER_HOLD_MS: string;
+  export const NARRATION_BACKEND: string;
+  export const SLINGSHOT_PAT: string;
+  export const SLINGSHOT_BASE_URL: string;
+  export const SLINGSHOT_TASK_ID: string;
+  export const SLINGSHOT_WORKFLOW_ID: string;
 }

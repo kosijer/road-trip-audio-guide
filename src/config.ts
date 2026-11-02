@@ -11,6 +11,11 @@ import {
   GOOGLE_MAPS_API_KEY,
   LLM_PROVIDER,
   MAX_LLM_CALLS_PER_TRIP,
+  NARRATION_BACKEND,
+  SLINGSHOT_BASE_URL,
+  SLINGSHOT_PAT,
+  SLINGSHOT_TASK_ID,
+  SLINGSHOT_WORKFLOW_ID,
   WALKING_POI_RADIUS_M,
 } from '@env';
 
@@ -24,11 +29,23 @@ function flag(value: string | undefined): boolean {
   return normalized === '1' || normalized === 'true' || normalized === 'yes';
 }
 
+function narrationBackend(): 'local' | 'slingshot' {
+  const value = (NARRATION_BACKEND || 'local').trim().toLowerCase();
+  return value === 'slingshot' ? 'slingshot' : 'local';
+}
+
 export const config = {
   llmProvider: (LLM_PROVIDER || 'gemini').toLowerCase(),
   geminiApiKey: GEMINI_API_KEY || '',
   geminiModel: (GEMINI_MODEL || 'gemini-flash-lite-latest').trim(),
   googleMapsApiKey: GOOGLE_MAPS_API_KEY || '',
+  narrationBackend: narrationBackend(),
+  slingshotPat: (SLINGSHOT_PAT || '').trim(),
+  slingshotBaseUrl: (
+    SLINGSHOT_BASE_URL || 'https://sapientaiproducts.com/save/api/v1'
+  ).replace(/\/$/, ''),
+  slingshotTaskId: (SLINGSHOT_TASK_ID || '').trim(),
+  slingshotWorkflowId: (SLINGSHOT_WORKFLOW_ID || '').trim(),
   clefEnabled: flag(CLEF_ENABLED),
   cloudflareAccountId: CLOUDFLARE_ACCOUNT_ID || '',
   cloudflareApiToken: CLOUDFLARE_API_TOKEN || '',
