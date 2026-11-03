@@ -1,11 +1,76 @@
+import { DeviceEventEmitter } from 'react-native';
 import { tn } from '../i18n';
 import { fetchJsonSilent } from './http';
+import { getRealLocation } from './location';
+
+export const WEATHER_EVENT = 'rtag-weather';
+export const WEATHER_STALE_MS = 45 * 60 * 1000;
+const HOURLY_COUNT = 12;
+
+export type WeatherHour = {
+  time: string;
+  temperatureC: number;
+  weatherCode: number;
+  precipProbability: number;
+};
+
+export type WeatherCurrent = {
+  temperatureC: number;
+  weatherCode: number;
+};
 
 export type WeatherSnapshot = {
   rainingNow: boolean;
   rainLikelyNextHour: boolean;
   caveat?: string;
+  fetchedAt: number;
+  latitude: number;
+  longitude: number;
+  current: WeatherCurrent;
+  hourly: WeatherHour[];
 };
+
+type OpenMeteoResponse = {
+  current?: {
+    time?: string;
+    temperature_2m?: number;
+    weather_code?: number;
+    precipitation?: number;
+    rain?: number;
+  };
+  hourly?: {
+    time?: string[];
+    temperature_2m?: number[];
+    weather_code?: number[];
+    precipitation_probability?: number[];
+    precipitation?: number[];
+  };
+};
+
+let cached: WeatherSnapshot | null = null;
+
+export function getCachedWeather(): WeatherSnapshot | null {
+  return cached;
+}
+
+export function isWeatherStale(
+  snapshot: WeatherSnapshot | null = cached,
+  now = Date.now(),
+): boolean {
+  if (!snapshot) {
+    return true;
+  }
+  return now - snapshot.fetchedAt >= WEATHER_STALE_MS;
+}
+
+function emitWeather(snapshot: WeatherSnapshot | null) {
+  DeviceEventEmitter.emit(WEATHER_EVENT, { weather: snapshot });
+}
+
+function setCache(snapshot: WeatherSnapshot) {
+  cached = snapshot;
+  emitWeather(snapshot);
+}
 
 function hourIndex(times: string[] | undefined, currentTime?: string): number {
   if (!times?.length) {
@@ -30,22 +95,38 @@ function hourIndex(times: string[] | undefined, currentTime?: string): number {
   return best;
 }
 
+function buildHourly(
+  hourly: OpenMeteoResponse['hourly'],
+  startIdx: number,
+): WeatherHour[] {
+  const times = hourly?.time ?? [];
+  const temps = hourly?.temperature_2m ?? [];
+  const codes = hourly?.weather_code ?? [];
+  const probs = hourly?.precipitation_probability ?? [];
+  const out: WeatherHour[] = [];
+  for (let i = startIdx; i < times.length && out.length < HOURLY_COUNT; i++) {
+    out.push({
+      time: times[i],
+      temperatureC: temps[i] ?? 0,
+      weatherCode: codes[i] ?? 0,
+      precipProbability: probs[i] ?? 0,
+    });
+  }
+  return out;
+}
+
 export async function getWeather(
   latitude: number,
   longitude: number,
 ): Promise<WeatherSnapshot | null> {
+  // forecast_days=2 so late-evening users still get ~12 hours ahead.
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${latitude}` +
-    `&longitude=${longitude}&current=precipitation,rain` +
-    `&hourly=precipitation_probability,precipitation&forecast_days=1&timezone=auto`;
-  const data = await fetchJsonSilent<{
-    current?: { time?: string; precipitation?: number; rain?: number };
-    hourly?: {
-      time?: string[];
-      precipitation_probability?: number[];
-      precipitation?: number[];
-    };
-  }>(url);
+    `&longitude=${longitude}` +
+    `&current=temperature_2m,weather_code,precipitation,rain` +
+    `&hourly=temperature_2m,weather_code,precipitation_probability,precipitation` +
+    `&forecast_days=2&timezone=auto`;
+  const data = await fetchJsonSilent<OpenMeteoResponse>(url);
   if (!data) {
     return null;
   }
@@ -65,12 +146,43 @@ export async function getWeather(
   // Need both a solid probability and some expected precip — 50% alone was too chatty.
   const rainLikelyNextHour = nextProb >= 70 && nextPrecip >= 0.5;
 
-  if (!rainingNow && !rainLikelyNextHour) {
-    return { rainingNow: false, rainLikelyNextHour: false };
-  }
-  return {
+  const currentCode = data.current?.weather_code ?? data.hourly?.weather_code?.[idx] ?? 0;
+  const currentTemp =
+    data.current?.temperature_2m ?? data.hourly?.temperature_2m?.[idx] ?? 0;
+
+  const snapshot: WeatherSnapshot = {
     rainingNow,
     rainLikelyNextHour,
-    caveat: rainingNow ? tn('weatherRainingNow') : tn('weatherRainLikely'),
+    fetchedAt: Date.now(),
+    latitude,
+    longitude,
+    current: {
+      temperatureC: currentTemp,
+      weatherCode: currentCode,
+    },
+    hourly: buildHourly(data.hourly, idx),
   };
+  if (rainingNow || rainLikelyNextHour) {
+    snapshot.caveat = rainingNow
+      ? tn('weatherRainingNow')
+      : tn('weatherRainLikely');
+  }
+
+  setCache(snapshot);
+  return snapshot;
+}
+
+/** Refresh using real GPS (ignores debug POI presets). */
+export async function refreshWeatherFromDevice(): Promise<WeatherSnapshot | null> {
+  try {
+    const loc = await getRealLocation();
+    return await getWeather(loc.latitude, loc.longitude);
+  } catch {
+    return null;
+  }
+}
+
+/** Test helper — clears in-memory cache between cases. */
+export function __resetWeatherCacheForTests() {
+  cached = null;
 }

@@ -3,24 +3,29 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useI18n } from '../hooks/useI18n';
 import { colors, radius, space, touchMin, type } from '../theme';
 import { BackIcon, MenuIcon } from './Icons';
+import { WeatherGlyph } from './WeatherGlyph';
 
 type Props = {
   /** Overlay screens keep a contextual title; main chrome is brand-only. */
   title?: string;
   mode: 'main' | 'overlay';
   speechMuted?: boolean;
+  weatherCode?: number | null;
   onPressMenu: () => void;
   onPressBack: () => void;
   onToggleMute?: () => void;
+  onPressWeather?: () => void;
 };
 
 export function AppHeader({
   title,
   mode,
   speechMuted = false,
+  weatherCode = null,
   onPressMenu,
   onPressBack,
   onToggleMute,
+  onPressWeather,
 }: Props) {
   const { t } = useI18n();
   return (
@@ -44,6 +49,21 @@ export function AppHeader({
       </Text>
 
       <View style={styles.actions}>
+        {mode === 'main' && onPressWeather ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('weatherOpen')}
+            android_ripple={{ color: colors.ripple, borderless: true }}
+            style={styles.iconBtn}
+            onPress={onPressWeather}
+            hitSlop={8}>
+            <WeatherGlyph
+              weatherCode={weatherCode}
+              size={22}
+              color={weatherCode == null ? colors.dim : colors.muted}
+            />
+          </Pressable>
+        ) : null}
         {mode === 'main' && onToggleMute ? (
           <Pressable
             accessibilityRole="button"

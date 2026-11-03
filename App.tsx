@@ -1,5 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Alert, DeviceEventEmitter, StatusBar, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Alert,
+  AppState,
+  type AppStateStatus,
+  DeviceEventEmitter,
+  StatusBar,
+  View,
+} from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AccountMenu,
@@ -7,6 +14,9 @@ import {
 } from './src/components/AccountMenu';
 import { AppHeader } from './src/components/AppHeader';
 import { BottomTabs, type MainTab } from './src/components/BottomTabs';
+import { PlaybackOverlay } from './src/components/PlaybackOverlay';
+import { StatusToast } from './src/components/StatusToast';
+import { WeatherModal } from './src/components/WeatherModal';
 import { useI18n } from './src/hooks/useI18n';
 import { hydrateI18n } from './src/i18n';
 import { AroundScreen } from './src/screens/AroundScreen';
@@ -22,8 +32,6 @@ import {
   warmFreshLocation,
   type FakeLocationId,
 } from './src/services/location';
-import { PlaybackOverlay } from './src/components/PlaybackOverlay';
-import { StatusToast } from './src/components/StatusToast';
 import {
   emptyStatus,
   getLanguageSettings,
@@ -45,6 +53,14 @@ import {
   stopSpeaking,
   TTS_EVENT,
 } from './src/services/tts';
+import {
+  getCachedWeather,
+  isWeatherStale,
+  refreshWeatherFromDevice,
+  WEATHER_EVENT,
+  WEATHER_STALE_MS,
+  type WeatherSnapshot,
+} from './src/services/weather';
 import { colors, sharedStyles } from './src/theme';
 import type { TripStatus } from './src/types';
 
@@ -72,6 +88,11 @@ function AppScreen() {
   const [speechMuted, setSpeechMutedState] = useState(false);
   const [fakeLocation, setFakeLocation] = useState<FakeLocationId | null>(null);
   const [ready, setReady] = useState(false);
+  const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
+  const [weatherOpen, setWeatherOpen] = useState(false);
+  const appStateRef = useRef<AppStateStatus>(
+    (AppState.currentState as AppStateStatus | null) ?? 'active',
+  );
 
   useEffect(() => {
     void (async () => {
@@ -119,6 +140,11 @@ function AppScreen() {
           setStatus(prev => ({ ...prev, lastLocation: here }));
         }
       });
+      void refreshWeatherFromDevice().then(snap => {
+        if (snap) {
+          setWeather(snap);
+        }
+      });
     })();
 
     const sub = DeviceEventEmitter.addListener(STATUS_EVENT, (next: TripStatus) => {
@@ -136,17 +162,53 @@ function AppScreen() {
         setSpeaking(payload.speaking);
       },
     );
+    const weatherSub = DeviceEventEmitter.addListener(
+      WEATHER_EVENT,
+      (payload: { weather: WeatherSnapshot | null }) => {
+        setWeather(payload.weather ?? getCachedWeather());
+      },
+    );
     const poll = setInterval(() => {
       void getStatus().then(setStatus);
       setSpeaking(isSpeaking());
     }, 4000);
+    const weatherPoll = setInterval(() => {
+      if (appStateRef.current !== 'active') {
+        return;
+      }
+      if (!isWeatherStale()) {
+        return;
+      }
+      void refreshWeatherFromDevice();
+    }, WEATHER_STALE_MS);
+    const appStateSub = AppState.addEventListener('change', next => {
+      const wasBackground = appStateRef.current.match(/inactive|background/);
+      appStateRef.current = next;
+      if (wasBackground && next === 'active' && isWeatherStale()) {
+        void refreshWeatherFromDevice();
+      }
+    });
     return () => {
       sub.remove();
       muteSub.remove();
       ttsSub.remove();
+      weatherSub.remove();
       clearInterval(poll);
+      clearInterval(weatherPoll);
+      appStateSub.remove();
     };
   }, []);
+
+  const onPressWeather = useCallback(async () => {
+    setWeatherOpen(true);
+    if (!isWeatherStale(weather)) {
+      return;
+    }
+    const snap = await refreshWeatherFromDevice();
+    if (snap) {
+      setWeather(snap);
+    }
+  }, [weather]);
 
   const onToggleMute = useCallback(async () => {
     const next = await setSpeechMuted(!speechMuted);
@@ -221,16 +283,25 @@ function AppScreen() {
         title={overlayTitle}
         mode={overlayOpen ? 'overlay' : 'main'}
         speechMuted={speechMuted}
+        weatherCode={weather?.current.weatherCode ?? null}
         onPressMenu={() => setMenuOpen(true)}
         onPressBack={() => setOverlay('none')}
         onToggleMute={() => {
           void onToggleMute();
+        }}
+        onPressWeather={() => {
+          void onPressWeather();
         }}
       />
       <AccountMenu
         visible={menuOpen}
         onClose={() => setMenuOpen(false)}
         onAction={onMenuAction}
+      />
+      <WeatherModal
+        visible={weatherOpen}
+        weather={weather}
+        onClose={() => setWeatherOpen(false)}
       />
       <View style={{ flex: 1 }}>
         {overlay === 'settings' ? (
