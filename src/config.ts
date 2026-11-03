@@ -70,6 +70,11 @@ export const config = {
   driveSkipCooldownMs: 45_000,
   /** Skip re-narrating the same place within this window (Around / Next / Drive). */
   narratedCooldownMs: 6 * 60 * 60 * 1000,
+  /**
+   * Drive map: keep last narrated POI in the camera fit only while this close.
+   * Farther away, follow the user only so the map does not keep zooming out.
+   */
+  driveMapFitLastPoiMaxM: 2000,
   locationTickMs: 15_000,
   sustainedSpeedSamples: 3,
   corridorCellDeg: 0.045,

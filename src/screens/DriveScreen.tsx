@@ -138,16 +138,18 @@ export function DriveScreen({
     }
     if (status.tripActive) {
       const focus = status.lastPoiMarkers?.[0];
-      if (focus) {
-        const distanceM = mapCenter
-          ? haversineM(mapCenter, {
-              latitude: focus.latitude,
-              longitude: focus.longitude,
-            })
-          : undefined;
-        return { ...focus, distanceM };
+      if (!focus || !mapCenter) {
+        return null;
       }
-      return null;
+      const distanceM = haversineM(mapCenter, {
+        latitude: focus.latitude,
+        longitude: focus.longitude,
+      });
+      // Drop distant last-story pins from the map fit so the camera follows you.
+      if (distanceM > config.driveMapFitLastPoiMaxM) {
+        return null;
+      }
+      return { ...focus, distanceM };
     }
     return nearestFromBatch(batch, mapCenter);
   }, [batch, mapCenter, status.lastPoiMarkers, status.tripActive, upcoming]);
