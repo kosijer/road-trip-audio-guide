@@ -38,6 +38,8 @@ export const sr: Record<StringKey, string> = {
   driveDistance: 'Oko {km} km udaljeno',
   driveNoSuggestion:
     'Pokrenite vožnju da čujete mesta ispred vas. Plan je opciono priprema unapred.',
+  driveSearching: 'Tražim mesta ispred…',
+  driveSearchingEmpty: 'Još ništa ispred — i dalje tražim…',
   driveComingUp: 'Sledi',
   driveTeaser: 'Za oko {eta} minuta {side}: {title}.',
   driveTeaserSideLeft: 'levo',

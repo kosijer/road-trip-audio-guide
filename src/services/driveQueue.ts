@@ -12,6 +12,8 @@ import {
   recordExposure,
   setExposureOutcome,
 } from '../preferences';
+import { withTimeout } from './http';
+import { getDriveSimHeadingDeg, isDriveSimMoving } from './location';
 import { applyHoursPolicy, lookupOpeningHours } from './places';
 import { discoverForNarration } from './prefetch';
 import { rankPois } from './poi/discover';
@@ -190,10 +192,27 @@ async function rankDrivingCandidates(pois: Poi[]): Promise<Poi[]> {
   }
 }
 
+/**
+ * Hours for Drive must stay cheap — sequential Places lookups were blocking
+ * the first teaser for a minute+. Sim: skip network. Live: check top few only.
+ */
 async function applyHours(candidates: Poi[]): Promise<Poi[]> {
+  if (candidates.length === 0) {
+    return [];
+  }
+  if (isDriveSimMoving()) {
+    return candidates;
+  }
   const withHours: Poi[] = [];
-  for (const poi of candidates.slice(0, 10)) {
-    const hours = await lookupOpeningHours(poi);
+  for (const poi of candidates.slice(0, 3)) {
+    let hours = poi.hours ?? null;
+    try {
+      hours =
+        (await withTimeout(lookupOpeningHours(poi), 4_000, 'drive-hours')) ??
+        hours;
+    } catch {
+      // keep unknown hours
+    }
     let primary;
     try {
       primary = (await getOrClassifyPoi(poi)).primaryCategory;
@@ -208,14 +227,16 @@ async function applyHours(candidates: Poi[]): Promise<Poi[]> {
       withHours.push(next);
     }
   }
-  return withHours;
+  // If lookups wiped everyone, still narrate the lead-time pick.
+  return withHours.length > 0 ? withHours : candidates.slice(0, 1);
 }
 
 async function selectCandidate(
   sample: LocationSample,
   samples: LocationSample[],
 ): Promise<Slot | null> {
-  const heading = headingFromSamples(samples);
+  const heading =
+    getDriveSimHeadingDeg() ?? headingFromSamples(samples);
   if (heading == null) {
     return null;
   }
@@ -233,7 +254,11 @@ async function selectCandidate(
 
   let pois: Poi[] = [];
   try {
-    pois = await discoverForNarration(sample, searchRadius, 'driving');
+    pois = await withTimeout(
+      discoverForNarration(sample, searchRadius, 'driving'),
+      15_000,
+      'drive-discover',
+    );
   } catch (error) {
     console.warn('drive discover failed', error);
     return null;
@@ -437,7 +462,10 @@ export async function onDriveTick(
   }
 
   phase = 'selecting';
-  await patchDriveStatus({ drivePhase: 'selecting' });
+  await patchDriveStatus({
+    drivePhase: 'selecting',
+    message: t('driveSearching'),
+  });
 
   let next: Slot | null = null;
   try {
@@ -448,15 +476,19 @@ export async function onDriveTick(
 
   if (!next) {
     phase = 'idle';
-    await patchDriveStatus({ drivePhase: 'idle' });
+    await patchDriveStatus({
+      drivePhase: 'idle',
+      message: t('driveSearchingEmpty'),
+    });
     return;
   }
 
   slot = next;
   const gen = generation;
+  // Don't await the full teaser→story pipeline — keep GPS ticks flowing.
   const run = () => runSlot(gen, sample);
   runTail = runTail.then(run, run);
-  await runTail;
+  void runTail;
 }
 
 export async function skipDriveTeaser(): Promise<void> {

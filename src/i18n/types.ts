@@ -35,6 +35,8 @@ export type StringKey =
   | 'driveDirections'
   | 'driveDistance'
   | 'driveNoSuggestion'
+  | 'driveSearching'
+  | 'driveSearchingEmpty'
   | 'driveComingUp'
   | 'driveTeaser'
   | 'driveTeaserSideLeft'

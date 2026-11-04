@@ -73,6 +73,11 @@ export function isDriveSimMoving(): boolean {
   return simulateMotion && driveSimActive && locationOverride != null;
 }
 
+/** Fixed demo bearing (ENE) — use this instead of noisy sample heading in sim. */
+export function getDriveSimHeadingDeg(): number | null {
+  return isDriveSimMoving() ? DEMO_HEADING_DEG : null;
+}
+
 export function setSimulateMotion(on: boolean): boolean {
   simulateMotion = on && locationOverride != null;
   if (!simulateMotion) {

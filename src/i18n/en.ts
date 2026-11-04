@@ -38,6 +38,8 @@ export const en: Record<StringKey, string> = {
   driveDistance: 'About {km} km away',
   driveNoSuggestion:
     'Start a trip to hear places ahead on your route. Plan is optional homework for later.',
+  driveSearching: 'Looking for places ahead…',
+  driveSearchingEmpty: 'Nothing ahead yet — still looking…',
   driveComingUp: 'Coming up',
   driveTeaser: 'Coming up in about {eta} minutes {side}: {title}.',
   driveTeaserSideLeft: 'on your left',
