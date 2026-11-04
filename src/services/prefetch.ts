@@ -1,7 +1,8 @@
-import { haversineM } from '../geo';
+import { haversineM, offsetAlongHeading } from '../geo';
 import { config } from '../config';
 import type { GeoPoint, Poi, PrefetchBatch } from '../types';
-import { discoverPois } from './poi/discover';
+import { discoverPois, discoverPoisForPrefetch } from './poi/discover';
+import { withTimeout } from './http';
 import { getCachedPoisNear, getPrefetchBatch, savePois } from './store';
 
 function dedupePois(pois: Poi[]): Poi[] {
@@ -98,41 +99,65 @@ export async function cacheFirstDiscover(
 /**
  * Drive narration discovery: always try live GPS radius. Walking-loop Plan
  * cache must not block fresh places along the road.
+ *
+ * Dense cities: Wikipedia’s nearest-N around *you* are all <300 m, so we also
+ * search from a point ahead on heading. Skip Overpass here — it stalls selecting.
  */
 export async function discoverForNarration(
   point: GeoPoint,
   radiusM: number,
   mode: 'driving' | 'walking',
+  opts?: { headingDeg?: number },
 ): Promise<Poi[]> {
   if (mode === 'walking') {
     return cacheFirstDiscover(point, radiusM);
   }
 
   const fromPlan = await nearbyFromDrivePrefetch(point, radiusM);
+  const wikiRadius = Math.min(10_000, Math.max(radiusM, 3_000));
+  const centers: GeoPoint[] = [point];
+  if (opts?.headingDeg != null && Number.isFinite(opts.headingDeg)) {
+    const leadM = Math.min(4_000, Math.max(1_200, Math.round(wikiRadius * 0.45)));
+    centers.push(offsetAlongHeading(point, opts.headingDeg, leadM));
+  }
 
-  let live: Poi[] = [];
-  try {
-    live = await discoverPois(point, radiusM);
-    if (live.length) {
+  const batches = await Promise.all(
+    centers.map(async center => {
       try {
-        await savePois(live);
+        return await withTimeout(
+          discoverPoisForPrefetch(center, wikiRadius),
+          12_000,
+          'drive-wiki',
+        );
       } catch (error) {
-        console.warn('cache write failed', error);
+        console.warn('drive wiki discover failed', error);
+        return [] as Poi[];
       }
+    }),
+  );
+
+  let live = dedupePois(
+    batches.flat().map(p => ({
+      ...p,
+      distanceM: p.distanceM ?? haversineM(point, p.location),
+    })),
+  );
+
+  if (live.length === 0) {
+    try {
+      live = await discoverPois(point, Math.min(radiusM, 5_000));
+    } catch (error) {
+      console.warn('discover fallback failed', error);
     }
-  } catch (error) {
-    console.warn('discover failed', error);
   }
 
   if (live.length > 0) {
-    // Live first so a stale Romford walk cache cannot dominate Thurrock.
-    return dedupePois([
-      ...live.map(p => ({
-        ...p,
-        distanceM: p.distanceM ?? haversineM(point, p.location),
-      })),
-      ...fromPlan,
-    ]);
+    try {
+      await savePois(live);
+    } catch (error) {
+      console.warn('cache write failed', error);
+    }
+    return dedupePois([...live, ...fromPlan]);
   }
 
   if (fromPlan.length > 0) {

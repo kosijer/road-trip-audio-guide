@@ -34,7 +34,10 @@ type ExtractQuery = {
 export async function searchWikipedia(
   center: GeoPoint,
   radiusM: number,
+  opts?: { limit?: number },
 ): Promise<Poi[]> {
+  // Dense cities: limit 20 only returns <300 m of hits — Drive cones stay empty.
+  const limit = Math.min(50, Math.max(10, opts?.limit ?? 50));
   const geo = await fetchJsonSilent<GeoSearch>(
     'https://en.wikipedia.org/w/api.php?' +
       new URLSearchParams({
@@ -42,7 +45,7 @@ export async function searchWikipedia(
         list: 'geosearch',
         gscoord: `${center.latitude}|${center.longitude}`,
         gsradius: String(Math.min(10_000, Math.max(10, Math.round(radiusM)))),
-        gslimit: '20',
+        gslimit: String(limit),
         format: 'json',
         origin: '*',
       }).toString(),

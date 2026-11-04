@@ -33,6 +33,32 @@ export function toRad(deg: number): number {
   return (deg * Math.PI) / 180;
 }
 
+/** Destination point after traveling `distanceM` along `headingDeg` (0=N). */
+export function offsetAlongHeading(
+  origin: GeoPoint,
+  headingDeg: number,
+  distanceM: number,
+): GeoPoint {
+  const R = 6_371_000;
+  const δ = distanceM / R;
+  const θ = (headingDeg * Math.PI) / 180;
+  const φ1 = (origin.latitude * Math.PI) / 180;
+  const λ1 = (origin.longitude * Math.PI) / 180;
+  const sinφ1 = Math.sin(φ1);
+  const cosφ1 = Math.cos(φ1);
+  const sinδ = Math.sin(δ);
+  const cosδ = Math.cos(δ);
+  const sinφ2 = sinφ1 * cosδ + cosφ1 * sinδ * Math.cos(θ);
+  const φ2 = Math.asin(sinφ2);
+  const λ2 =
+    λ1 +
+    Math.atan2(Math.sin(θ) * sinδ * cosφ1, cosδ - sinφ1 * sinφ2);
+  return {
+    latitude: (φ2 * 180) / Math.PI,
+    longitude: (((λ2 * 180) / Math.PI + 540) % 360) - 180,
+  };
+}
+
 export function cellId(point: GeoPoint, cellDeg = DEFAULT_CELL_DEG): string {
   return `${Math.round(point.latitude / cellDeg)}:${Math.round(
     point.longitude / cellDeg,

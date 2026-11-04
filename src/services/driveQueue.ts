@@ -255,8 +255,10 @@ async function selectCandidate(
   let pois: Poi[] = [];
   try {
     pois = await withTimeout(
-      discoverForNarration(sample, searchRadius, 'driving'),
-      15_000,
+      discoverForNarration(sample, searchRadius, 'driving', {
+        headingDeg: heading,
+      }),
+      20_000,
       'drive-discover',
     );
   } catch (error) {
@@ -297,13 +299,21 @@ async function selectCandidate(
   const farNarrow = withEta(narrowHits).filter(h => h.etaMin >= minEta);
   const farWide = withEta(wideHits).filter(h => h.etaMin >= minEta);
   let pool = farNarrow.length > 0 ? farNarrow : farWide;
-  // Soft fallback: still ahead (≥1 min / ~400 m), so demos aren’t silent for minutes.
+  // Soft fallback: still ahead so demos aren’t silent in dense cities.
   if (pool.length === 0) {
     const softOk = (h: { etaMin: number; corridor: CorridorHit }) =>
-      h.etaMin >= 1 && h.corridor.distanceM >= 400;
+      h.etaMin >= 1 && h.corridor.distanceM >= 250;
     const softNarrow = withEta(narrowHits).filter(softOk);
     const softWide = withEta(wideHits).filter(softOk);
     pool = softNarrow.length > 0 ? softNarrow : softWide;
+  }
+  if (pool.length === 0) {
+    // Last resort: anything in the forward cone beyond ~150 m.
+    const anyAhead = (h: { corridor: CorridorHit }) =>
+      h.corridor.distanceM >= 150;
+    const lastNarrow = withEta(narrowHits).filter(anyAhead);
+    const lastWide = withEta(wideHits).filter(anyAhead);
+    pool = lastNarrow.length > 0 ? lastNarrow : lastWide;
   }
   if (pool.length === 0) {
     return null;
