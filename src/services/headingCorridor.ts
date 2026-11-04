@@ -109,10 +109,10 @@ export function announceLeadMinutes(speedKmh: number): {
 
 /**
  * Soft floor: avoid teasing places that are already almost on top of you.
- * Includes room for teaser TTS + hold before the full story starts.
+ * Includes a little room for teaser TTS + hold before the full story starts.
  */
 export function minUsefulEtaMinutes(narrowLeadMin: number): number {
-  return Math.max(2.5, narrowLeadMin * 0.55);
+  return Math.max(2, narrowLeadMin * 0.45);
 }
 
 export function evaluateCorridor(

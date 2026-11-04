@@ -11,7 +11,11 @@ import {
   setSessionMood,
   type SessionMood,
 } from '../preferences';
-import { getFreshLocation } from '../services/location';
+import {
+  getFreshLocation,
+  isSimulateMotion,
+  peekFreshLocation,
+} from '../services/location';
 import { prefetchBatchUsableForDrive } from '../services/prefetch';
 import { getPrefetchBatch } from '../services/store';
 import {
@@ -112,7 +116,7 @@ export function DriveScreen({
   const tripActive = status.tripActive;
 
   useEffect(() => {
-    // Active trip: follow tick locations only (not live simulate peek).
+    // Active trip: follow tick locations (sim gets a smoother overlay below).
     if (
       lastLat != null &&
       lastLon != null &&
@@ -140,6 +144,20 @@ export function DriveScreen({
       cancelled = true;
     };
   }, [lastLat, lastLon, tripActive]);
+
+  useEffect(() => {
+    // Between engine ticks, animate the debug pin so motion doesn’t feel stepped.
+    if (!tripActive || !isSimulateMotion()) {
+      return;
+    }
+    const id = setInterval(() => {
+      const here = peekFreshLocation();
+      if (here) {
+        setMapCenter(here);
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [tripActive]);
 
   const upcoming = status.upcomingPoi;
   const showComingUp =

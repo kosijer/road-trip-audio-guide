@@ -59,9 +59,23 @@ export function AroundScreen({
     void getSessionState().then(s => setMood(s.mood));
   }, []);
 
+  const lastLat = status.lastLocation?.latitude;
+  const lastLon = status.lastLocation?.longitude;
+  const storyTitle = status.lastPoiTitle?.trim() ?? '';
+  const storyNarration = status.lastNarration?.trim() ?? '';
+  const showStory = Boolean(storyTitle || storyNarration);
+
   useEffect(() => {
-    if (status.lastLocation) {
-      setMapCenter(status.lastLocation);
+    // Freeze on the last stored fix — live getFreshLocation() keeps sliding
+    // under simulate-motion even after End Trip.
+    if (
+      lastLat != null &&
+      lastLon != null &&
+      Number.isFinite(lastLat) &&
+      Number.isFinite(lastLon)
+    ) {
+      setMapCenter({ latitude: lastLat, longitude: lastLon });
+      return;
     }
     let cancelled = false;
     void getFreshLocation()
@@ -76,7 +90,14 @@ export function AroundScreen({
     return () => {
       cancelled = true;
     };
-  }, [status.lastLocation]);
+  }, [lastLat, lastLon]);
+
+  useEffect(() => {
+    // Drive tab clear can wipe story while local “has result” stayed true.
+    if (hasAroundResult && !showStory) {
+      setHasAroundResult(false);
+    }
+  }, [hasAroundResult, showStory]);
 
   const focus = status.lastPoiMarkers?.[0];
 
@@ -89,9 +110,10 @@ export function AroundScreen({
       if (next.lastLocation) {
         setMapCenter(next.lastLocation);
       }
-      setHasAroundResult(
-        Boolean(next.lastNarration?.trim() || next.lastPoiTitle?.trim()),
+      const ok = Boolean(
+        next.lastNarration?.trim() || next.lastPoiTitle?.trim(),
       );
+      setHasAroundResult(ok);
     } catch {
       setHasAroundResult(false);
     } finally {
@@ -145,7 +167,7 @@ export function AroundScreen({
   const mapMarkers = useMemo(() => {
     // Only plot story pins after a successful Around me this visit — stale
     // lastPoiMarkers (e.g. Null Island from a bad fix) used to blow out the map.
-    if (!hasAroundResult) {
+    if (!hasAroundResult || !showStory) {
       return [];
     }
     const byId = new Map<
@@ -169,7 +191,7 @@ export function AroundScreen({
       });
     }
     return [...byId.values()];
-  }, [hasAroundResult, more, status.lastPoiMarkers]);
+  }, [hasAroundResult, more, showStory, status.lastPoiMarkers]);
 
   return (
     <ScrollView
@@ -209,10 +231,10 @@ export function AroundScreen({
         </Text>
       </Pressable>
 
-      {hasAroundResult ? (
+      {showStory ? (
         <PlaceStoryCard
-          title={status.lastPoiTitle}
-          narration={status.lastNarration}
+          title={storyTitle || status.lastPoiTitle}
+          narration={storyNarration || status.lastNarration}
           exposureId={status.lastExposureId}
           latitude={focus?.latitude}
           longitude={focus?.longitude}
@@ -222,7 +244,7 @@ export function AroundScreen({
         />
       ) : null}
 
-      {hasAroundResult ? (
+      {hasAroundResult && showStory ? (
         <Pressable
           accessibilityRole="button"
           android_ripple={{ color: colors.ripple }}
@@ -240,7 +262,7 @@ export function AroundScreen({
         </Pressable>
       ) : null}
 
-      {hasAroundResult && moreItems.length > 0 ? (
+      {hasAroundResult && showStory && moreItems.length > 0 ? (
         <PlaceAccordionList items={moreItems} />
       ) : null}
     </ScrollView>

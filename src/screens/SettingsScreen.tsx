@@ -91,6 +91,7 @@ export function SettingsScreen({
     () => [
       { value: 'gps' as const, label: t('debugGps') },
       { value: 'london' as const, label: t('debugLondon') },
+      { value: 'nottingHill' as const, label: t('debugNottingHill') },
       { value: 'westminster' as const, label: t('debugWestminster') },
       { value: 'belgrade' as const, label: t('debugBelgrade') },
     ],

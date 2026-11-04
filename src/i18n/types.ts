@@ -165,6 +165,7 @@ export type StringKey =
   | 'debugLocation'
   | 'debugGps'
   | 'debugLondon'
+  | 'debugNottingHill'
   | 'debugBelgrade'
   | 'debugWestminster'
   | 'debugOn'

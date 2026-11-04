@@ -18,10 +18,10 @@ import { rankPois } from './poi/discover';
 import {
   announceLeadMinutes,
   etaMinutes,
+  filterInCone,
   headingFromSamples,
   lookaheadDistanceM,
   minUsefulEtaMinutes,
-  selectCorridorTier,
   type CorridorHit,
   type CorridorSide,
 } from './headingCorridor';
@@ -247,34 +247,35 @@ async function selectCandidate(
     return null;
   }
 
-  const { hits } = selectCorridorTier(
-    sample,
-    heading,
-    pois,
-    {
-      halfAngleDeg: config.driveNarrowHalfAngleDeg,
-      maxDistanceM: narrowMax,
-    },
-    {
-      halfAngleDeg: config.driveWideHalfAngleDeg,
-      maxDistanceM: wideMax,
-    },
-  );
-  if (hits.length === 0) {
+  const narrowCone = {
+    halfAngleDeg: config.driveNarrowHalfAngleDeg,
+    maxDistanceM: narrowMax,
+  };
+  const wideCone = {
+    halfAngleDeg: config.driveWideHalfAngleDeg,
+    maxDistanceM: wideMax,
+  };
+  const narrowHits = filterInCone(sample, heading, pois, narrowCone);
+  const wideHits = filterInCone(sample, heading, pois, wideCone);
+  if (narrowHits.length === 0 && wideHits.length === 0) {
     return null;
   }
 
-  // Prefer places with enough lead time. Never tease something already on top
-  // of you — wait for the next tick instead of falling back to “too late”.
+  // Prefer narrow-cone places with enough lead time; if those are all too
+  // close, try the wide cone — but never tease something already beside you.
   const minEta = minUsefulEtaMinutes(leads.narrowMin);
-  const withEta = hits.map(h => ({
-    ...h,
-    etaMin: etaMinutes(h.corridor.distanceM, sample.speedKmh),
-  }));
-  const pool = withEta.filter(h => h.etaMin >= minEta);
+  const withEta = <T extends { corridor: CorridorHit }>(hits: T[]) =>
+    hits.map(h => ({
+      ...h,
+      etaMin: etaMinutes(h.corridor.distanceM, sample.speedKmh),
+    }));
+  const farNarrow = withEta(narrowHits).filter(h => h.etaMin >= minEta);
+  const farWide = withEta(wideHits).filter(h => h.etaMin >= minEta);
+  const pool = farNarrow.length > 0 ? farNarrow : farWide;
   if (pool.length === 0) {
     return null;
   }
+  const hits = pool;
 
   // Bias toward the speed-appropriate lead (highway ≈ 15 min, not 2).
   const idealEta = leads.narrowMin;

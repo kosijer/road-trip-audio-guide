@@ -44,7 +44,13 @@ export async function geocodeQuery(query: string): Promise<GeocodedPlace | null>
   const place = data?.places?.[0];
   const lat = place?.location?.latitude;
   const lon = place?.location?.longitude;
-  if (lat == null || lon == null || Number.isNaN(lat) || Number.isNaN(lon)) {
+  if (
+    !place ||
+    lat == null ||
+    lon == null ||
+    Number.isNaN(lat) ||
+    Number.isNaN(lon)
+  ) {
     console.warn('geocode no result', address);
     return null;
   }

@@ -180,6 +180,7 @@ export const sr: Record<StringKey, string> = {
   debugLocation: 'Debug lokacija',
   debugGps: 'Pravi GPS',
   debugLondon: 'London',
+  debugNottingHill: 'Notting Hill',
   debugBelgrade: 'Beograd',
   debugWestminster: 'Westminster',
   debugOn: 'Debug lokacija: {label}',

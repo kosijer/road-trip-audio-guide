@@ -75,8 +75,9 @@ export const config = {
    * Farther away, follow the user only so the map does not keep zooming out.
    */
   driveMapFitLastPoiMaxM: 2000,
-  locationTickMs: 15_000,
-  sustainedSpeedSamples: 3,
+  /** Drive GPS / sim tick — keep ≤5s so the map pin doesn’t feel stuck. */
+  locationTickMs: 5_000,
+  sustainedSpeedSamples: 2,
   corridorCellDeg: 0.045,
   prefetchSampleKm: 8,
   wikipediaUserAgent:

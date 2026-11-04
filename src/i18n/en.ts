@@ -179,6 +179,7 @@ export const en: Record<StringKey, string> = {
   debugLocation: 'Debug location',
   debugGps: 'Real GPS',
   debugLondon: 'London',
+  debugNottingHill: 'Notting Hill',
   debugBelgrade: 'Belgrade',
   debugWestminster: 'Westminster',
   debugOn: 'Debug location: {label}',

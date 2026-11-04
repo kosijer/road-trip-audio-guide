@@ -17,6 +17,12 @@ export const FAKE_LOCATIONS = {
     latitude: 51.5081,
     longitude: -0.1281,
   },
+  nottingHill: {
+    id: 'nottingHill',
+    label: 'Notting Hill',
+    latitude: 51.5094,
+    longitude: -0.1965,
+  },
   belgrade: {
     id: 'belgrade',
     label: 'Beograd',

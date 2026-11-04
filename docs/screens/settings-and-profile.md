@@ -15,7 +15,7 @@ Tune how Along listens and speaks; debug without a car.
 | Narration follows UI / separate | Language of Gemini + TTS script |
 | Speech rate | TTS speed 0.50×–1.50× |
 | Trip speed threshold | Drive counts as “moving” above this (walk ~3–5, bike ~8–12, car ~25) |
-| Debug location | Fake pin: London / Westminster / Belgrade / real GPS |
+| Debug location | Fake pin: London / Notting Hill / Westminster / Belgrade / real GPS |
 | Simulate driving motion | With a fake pin: move east ~48 km/h so Drive demos work on emulator |
 | Diagnostics | Last location, LLM call count, prefetch count |
 
