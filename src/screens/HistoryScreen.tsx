@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Accordion } from '../components/Accordion';
+import { TrashIcon } from '../components/Icons';
 import { MapsLinks } from '../components/MapsLinks';
 import { PreferenceFeedback } from '../components/PreferenceFeedback';
 import { useI18n } from '../hooks/useI18n';
@@ -10,8 +11,12 @@ import {
   type ExposureOutcome,
 } from '../preferences';
 import { humanCategory } from '../services/routePrefetch';
-import { clearVisitHistory, getVisitHistory } from '../services/store';
-import { colors, sharedStyles, space, type } from '../theme';
+import {
+  clearVisitHistory,
+  deleteVisit,
+  getVisitHistory,
+} from '../services/store';
+import { colors, sharedStyles, space, touchMin, type } from '../theme';
 import type { VisitRecord } from '../types';
 
 function formatWhen(ts: number, locale: string): string {
@@ -119,6 +124,31 @@ export function HistoryScreen() {
     ]);
   }, [t]);
 
+  const onDelete = useCallback(
+    (visit: VisitRecord) => {
+      Alert.alert(t('historyDelete'), t('historyDeleteConfirm'), [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('historyDelete'),
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              const next = await deleteVisit(visit.id);
+              setVisits(next);
+              setExpandedId(prev => (prev === visit.id ? null : prev));
+              setOutcomes(prev => {
+                const copy = { ...prev };
+                delete copy[visit.poiId];
+                return copy;
+              });
+            })();
+          },
+        },
+      ]);
+    },
+    [t],
+  );
+
   return (
     <ScrollView contentContainerStyle={sharedStyles.content}>
       {loading ? null : visits.length === 0 ? (
@@ -183,6 +213,16 @@ export function HistoryScreen() {
                   longitude={visit.longitude}
                   mode="pin"
                 />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('historyDeleteA11y')}
+                  android_ripple={{ color: colors.ripple }}
+                  style={styles.deleteRow}
+                  onPress={() => onDelete(visit)}
+                  hitSlop={6}>
+                  <TrashIcon color={colors.stop} size={16} />
+                  <Text style={styles.deleteText}>{t('historyDelete')}</Text>
+                </Pressable>
               </Accordion>
             );
           })}
@@ -220,5 +260,20 @@ const styles = StyleSheet.create({
   },
   tasteMark: {
     fontSize: 16,
+  },
+  deleteRow: {
+    marginTop: space.sm,
+    minHeight: touchMin * 0.75,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    alignSelf: 'flex-start',
+    paddingVertical: space.xs,
+    paddingHorizontal: space.xs,
+  },
+  deleteText: {
+    ...type.caption,
+    color: colors.stop,
+    fontWeight: '700',
   },
 });

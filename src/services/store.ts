@@ -560,6 +560,13 @@ export async function clearVisitHistory(): Promise<void> {
   await AsyncStorage.removeItem(KEY.visits);
 }
 
+export async function deleteVisit(visitId: string): Promise<VisitRecord[]> {
+  const visits = await getVisitHistory();
+  const next = visits.filter(v => v.id !== visitId);
+  await saveVisitHistory(next);
+  return next;
+}
+
 /** Progress / ranking strings that should not survive app relaunch. */
 export function isTransientStatusMessage(message: string): boolean {
   const m = message.trim().toLowerCase();

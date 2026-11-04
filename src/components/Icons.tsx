@@ -480,6 +480,45 @@ export function BackIcon({ color, size = 22 }: IconProps) {
   );
 }
 
+/** Simple trash can for History delete. */
+export function TrashIcon({ color, size = 18 }: IconProps) {
+  const lidW = size * 0.72;
+  const bodyW = size * 0.56;
+  const bodyH = size * 0.52;
+  return (
+    <View style={[styles.box, { width: size, height: size }]}>
+      <View
+        style={{
+          width: size * 0.22,
+          height: size * 0.08,
+          borderRadius: 1,
+          backgroundColor: color,
+          marginBottom: 1,
+        }}
+      />
+      <View
+        style={{
+          width: lidW,
+          height: size * 0.1,
+          borderRadius: 1,
+          backgroundColor: color,
+          marginBottom: 2,
+        }}
+      />
+      <View
+        style={{
+          width: bodyW,
+          height: bodyH,
+          borderRadius: 2,
+          borderWidth: 1.5,
+          borderColor: color,
+          backgroundColor: 'transparent',
+        }}
+      />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   box: {
     alignItems: 'center',

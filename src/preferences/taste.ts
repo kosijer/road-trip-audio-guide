@@ -1,5 +1,5 @@
-import { getPoi, savePoi } from '../services/store';
-import type { VisitRecord } from '../types';
+import { getPoi, recordVisit, savePoi } from '../services/store';
+import type { Poi, PoiSource, VisitRecord } from '../types';
 import { getOrClassifyPoi } from './classify';
 import { buildExposureContext } from './context';
 import {
@@ -9,16 +9,32 @@ import {
 } from './preferenceStore';
 import type { ExposureOutcome, PreferenceMode } from './types';
 
+/** Optional stub when the POI cache miss (Around “more nearby”). */
+export type TastePlaceStub = {
+  id: string;
+  title: string;
+  summary?: string;
+  category?: string;
+  latitude: number;
+  longitude: number;
+  source?: PoiSource;
+};
+
 /**
  * Like / not-interested for a place that may not have an exposure yet
- * (e.g. Around “more nearby”, Plan accordion).
+ * (e.g. Around “more nearby”, Plan accordion). Also upserts History.
  */
 export async function applyTasteForPoi(
   poiId: string,
   outcome: 'liked' | 'not_interested',
   mode: PreferenceMode = 'browse',
+  place?: TastePlaceStub,
 ): Promise<ExposureOutcome | null> {
-  const poi = await getPoi(poiId);
+  let poi = await getPoi(poiId);
+  if (!poi && place) {
+    poi = stubToPoi(place);
+    await savePoi(poi);
+  }
   if (!poi) {
     return null;
   }
@@ -37,7 +53,45 @@ export async function applyTasteForPoi(
   if (!saved) {
     return null;
   }
-  return saved.outcome === 'ignored' ? null : saved.outcome;
+  const resolved =
+    saved.outcome === 'ignored' ? null : saved.outcome;
+  if (resolved) {
+    const visitMode =
+      mode === 'driving' || mode === 'walking' ? mode : 'walking';
+    try {
+      await recordVisit({
+        poiId: poi.id,
+        title: poi.title,
+        category: poi.category,
+        summary: poi.summary,
+        source: poi.source,
+        latitude: poi.location.latitude,
+        longitude: poi.location.longitude,
+        mode: visitMode,
+        narrationExcerpt: poi.summary?.slice(0, 280),
+      });
+    } catch (error) {
+      console.warn('recordVisit after taste failed', error);
+    }
+  }
+  return resolved;
+}
+
+function stubToPoi(place: TastePlaceStub): Poi {
+  return {
+    id: place.id,
+    title: place.title,
+    summary: place.summary ?? '',
+    location: {
+      latitude: place.latitude,
+      longitude: place.longitude,
+    },
+    source: place.source ?? 'wikipedia',
+    category: place.category,
+    extractLength: (place.summary ?? '').length,
+    isOutdoor: true,
+    isIndoorVenue: false,
+  };
 }
 
 /** History rows may outlive the POI cache — rebuild a stub so taste still works. */

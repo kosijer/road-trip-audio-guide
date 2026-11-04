@@ -43,13 +43,19 @@ export function PlaceAccordionList({
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const onTaste = useCallback(
-    async (poiId: string, next: 'liked' | 'not_interested') => {
-      setBusyId(poiId);
+    async (item: PlaceListItem, next: 'liked' | 'not_interested') => {
+      setBusyId(item.id);
       try {
-        const saved = await applyTasteForPoi(poiId, next, tasteMode);
+        const saved = await applyTasteForPoi(item.id, next, tasteMode, {
+          id: item.id,
+          title: item.title,
+          summary: item.summary,
+          latitude: item.latitude,
+          longitude: item.longitude,
+        });
         setOutcomes(prev => ({
           ...prev,
-          [poiId]: saved ?? undefined,
+          [item.id]: saved ?? undefined,
         }));
       } finally {
         setBusyId(null);
@@ -86,10 +92,10 @@ export function PlaceAccordionList({
               outcome={outcomes[item.id]}
               busy={busyId === item.id}
               onLiked={() => {
-                void onTaste(item.id, 'liked');
+                void onTaste(item, 'liked');
               }}
               onNotInterested={() => {
-                void onTaste(item.id, 'not_interested');
+                void onTaste(item, 'not_interested');
               }}
             />
             <MapsLinks
