@@ -71,10 +71,10 @@ export const config = {
   /** Skip re-narrating the same place within this window (Around / Next / Drive). */
   narratedCooldownMs: 6 * 60 * 60 * 1000,
   /**
-   * Drive map: keep last narrated POI in the camera fit only while this close.
-   * Farther away, follow the user only so the map does not keep zooming out.
+   * Drive map (follow): expand the frame to include a found POI pin while this
+   * close. Farther away, keep a tight follow on you (pin may be off-screen).
    */
-  driveMapFitLastPoiMaxM: 2000,
+  driveMapFitLastPoiMaxM: 12_000,
   /** Drive GPS / sim tick — keep ≤5s so the map pin doesn’t feel stuck. */
   locationTickMs: 5_000,
   sustainedSpeedSamples: 2,

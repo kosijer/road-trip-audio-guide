@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, Circle, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
-import { isPlausibleLocation } from '../geo';
+import { config } from '../config';
+import { haversineM, isPlausibleLocation } from '../geo';
 import { t } from '../i18n';
 import { colors, radius, sharedStyles, space } from '../theme';
 import type { GeoPoint } from '../types';
@@ -75,11 +76,18 @@ export function NearbyMap({
     if (center && isPlausibleLocation(center)) {
       points.push(center);
     }
-    if (cameraMode === 'follow') {
-      return points;
-    }
     for (const m of markers) {
       if (!isPlausibleLocation(m)) {
+        continue;
+      }
+      // Follow: only pull the camera out for POIs still “nearby” so a highway
+      // lookahead doesn’t zoom the map to a postage stamp of London.
+      if (
+        cameraMode === 'follow' &&
+        center &&
+        isPlausibleLocation(center) &&
+        haversineM(center, m) > config.driveMapFitLastPoiMaxM
+      ) {
         continue;
       }
       points.push({ latitude: m.latitude, longitude: m.longitude });
@@ -88,14 +96,13 @@ export function NearbyMap({
   }, [cameraMode, center, markers]);
 
   const region: Region | null = useMemo(() => {
-    if (cameraMode !== 'follow' && fitPoints.length >= 2) {
+    if (fitPoints.length >= 2) {
       return regionForPoints(fitPoints);
     }
     if (!center || !isPlausibleLocation(center)) {
       return null;
     }
-    // Follow / single-point: keep a tight street-level frame (ignore huge
-    // discovery radii like drivingPoiRadiusM which only blow the camera out).
+    // Single-point / far POI: tight street-level frame on you.
     const followDelta =
       cameraMode === 'follow'
         ? DEFAULT_DELTA
@@ -112,7 +119,7 @@ export function NearbyMap({
     if (!mapRef.current || fitPoints.length === 0) {
       return;
     }
-    if (cameraMode !== 'follow' && fitPoints.length >= 2) {
+    if (fitPoints.length >= 2) {
       mapRef.current.fitToCoordinates(fitPoints, {
         edgePadding: EDGE,
         animated: true,
@@ -122,7 +129,7 @@ export function NearbyMap({
     if (region) {
       mapRef.current.animateToRegion(region, 350);
     }
-  }, [cameraMode, fitPoints, region]);
+  }, [fitPoints, region]);
 
   const usableCenter =
     center && isPlausibleLocation(center) ? center : null;

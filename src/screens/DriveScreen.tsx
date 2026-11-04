@@ -5,7 +5,6 @@ import { NearbyMap } from '../components/NearbyMap';
 import { PlaceStoryCard } from '../components/PlaceStoryCard';
 import { useI18n } from '../hooks/useI18n';
 import { haversineM, isPlausibleLocation } from '../geo';
-import { config } from '../config';
 import {
   getSessionState,
   setSessionMood,
@@ -181,17 +180,15 @@ export function DriveScreen({
       };
     }
     const focus = status.lastPoiMarkers?.[0];
-    if (!focus || !mapCenter) {
+    if (!focus) {
       return null;
     }
-    const distanceM = haversineM(mapCenter, {
-      latitude: focus.latitude,
-      longitude: focus.longitude,
-    });
-    // Drop distant last-story pins from the map fit so the camera follows you.
-    if (distanceM > config.driveMapFitLastPoiMaxM) {
-      return null;
-    }
+    const distanceM = mapCenter
+      ? haversineM(mapCenter, {
+          latitude: focus.latitude,
+          longitude: focus.longitude,
+        })
+      : undefined;
     return { ...focus, distanceM };
   }, [batch, mapCenter, status.lastPoiMarkers, status.tripActive, upcoming]);
 
