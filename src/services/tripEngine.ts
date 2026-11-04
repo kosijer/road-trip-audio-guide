@@ -339,22 +339,14 @@ async function narrateViaSlingshot(location: LocationSample): Promise<void> {
     return;
   }
 
-  let weatherLat = location.latitude;
-  let weatherLon = location.longitude;
-  try {
-    const real = await getRealLocation();
-    weatherLat = real.latitude;
-    weatherLon = real.longitude;
-  } catch {
-    // Keep trip location if real GPS is unavailable.
-  }
-
+  // Use trip location (honors debug fake pin). Slingshot picks place + weather
+  // from the same coords — do not swap in real GPS here.
   await patch({ message: t('slingshotBusy') });
   const session = await getSessionState();
   try {
     const packaged = await runRoadGuideWorkflow({
-      latitude: weatherLat,
-      longitude: weatherLon,
+      latitude: location.latitude,
+      longitude: location.longitude,
       language: getNarrationLanguage(),
       mood: slingshotMoodLabel(session.mood),
       mode: 'walk',

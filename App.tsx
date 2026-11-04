@@ -27,7 +27,9 @@ import { ProfileScreen } from './src/screens/ProfileScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import {
   FAKE_LOCATIONS,
+  getFreshLocation,
   getLocationOverride,
+  peekFreshLocation,
   setLocationOverride,
   warmFreshLocation,
   type FakeLocationId,
@@ -233,12 +235,26 @@ function AppScreen() {
     (next: FakeLocationId | null) => {
       setLocationOverride(next);
       setFakeLocation(next);
+      if (next) {
+        const here = peekFreshLocation();
+        setStatus(prev => ({
+          ...prev,
+          lastLocation: here ?? prev.lastLocation,
+          message: t('debugOn', { label: FAKE_LOCATIONS[next].label }),
+        }));
+        return;
+      }
       setStatus(prev => ({
         ...prev,
-        message: next
-          ? t('debugOn', { label: FAKE_LOCATIONS[next].label })
-          : t('debugOff'),
+        message: t('debugOff'),
       }));
+      void getFreshLocation()
+        .then(here => {
+          setStatus(prev => ({ ...prev, lastLocation: here }));
+        })
+        .catch(() => {
+          // Keep last pin until GPS responds.
+        });
     },
     [t],
   );
