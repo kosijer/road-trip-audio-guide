@@ -1,5 +1,6 @@
 import { PermissionsAndroid, Platform } from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
+import { isPlausibleLocation } from '../geo';
 import type { GeoPoint, LocationSample } from '../types';
 
 Geolocation.setRNConfiguration({
@@ -42,6 +43,8 @@ let freshInflight: Promise<LocationSample> | null = null;
 /** Emulator demo: move east from the fake pin at highway-ish speed. */
 const DEMO_SPEED_KMH = 48;
 const DEMO_HEADING_DEG = 90;
+/** Rebase the demo path before spherical math drifts toward Null Island. */
+const DEMO_MAX_DISTANCE_M = 150_000;
 let simulateMotion = false;
 let motionOrigin: GeoPoint | null = null;
 let motionStartedAt = 0;
@@ -142,13 +145,18 @@ function readPosition(
   return new Promise((resolve, reject) => {
     Geolocation.getCurrentPosition(
       pos => {
-        resolve({
+        const sample: LocationSample = {
           latitude: pos.coords.latitude,
           longitude: pos.coords.longitude,
           speedKmh: speedToKmh(pos.coords.speed),
           timestamp: pos.timestamp,
           accuracyM: pos.coords.accuracy,
-        });
+        };
+        if (!isPlausibleLocation(sample)) {
+          reject(new Error('location_failed: implausible_fix'));
+          return;
+        }
+        resolve(sample);
       },
       error =>
         reject(
@@ -227,14 +235,47 @@ function offsetAlongHeading(
 
 function overrideSample(): LocationSample {
   const now = Date.now();
-  if (simulateMotion && motionOrigin) {
-    const elapsedH = Math.max(0, (now - motionStartedAt) / 3_600_000);
-    const distanceM = DEMO_SPEED_KMH * 1000 * elapsedH;
+  if (simulateMotion && locationOverride) {
+    // Fast Refresh / partial re-init can leave motion clock at 0 → huge jump.
+    if (!motionOrigin || motionStartedAt <= 0) {
+      motionOrigin = {
+        latitude: locationOverride.latitude,
+        longitude: locationOverride.longitude,
+      };
+      motionStartedAt = now;
+    }
+    let elapsedH = Math.max(0, (now - motionStartedAt) / 3_600_000);
+    let distanceM = DEMO_SPEED_KMH * 1000 * elapsedH;
+    if (distanceM > DEMO_MAX_DISTANCE_M) {
+      const ahead = offsetAlongHeading(
+        motionOrigin,
+        DEMO_HEADING_DEG,
+        DEMO_MAX_DISTANCE_M,
+      );
+      motionOrigin = ahead;
+      motionStartedAt = now;
+      elapsedH = 0;
+      distanceM = 0;
+    }
     const point = offsetAlongHeading(
       motionOrigin,
       DEMO_HEADING_DEG,
       distanceM,
     );
+    if (!isPlausibleLocation(point)) {
+      motionOrigin = {
+        latitude: locationOverride.latitude,
+        longitude: locationOverride.longitude,
+      };
+      motionStartedAt = now;
+      return {
+        latitude: locationOverride.latitude,
+        longitude: locationOverride.longitude,
+        speedKmh: DEMO_SPEED_KMH,
+        timestamp: now,
+        accuracyM: 5,
+      };
+    }
     return {
       latitude: point.latitude,
       longitude: point.longitude,
@@ -253,12 +294,15 @@ function overrideSample(): LocationSample {
 }
 
 function rememberFresh(sample: LocationSample): LocationSample {
+  if (!isPlausibleLocation(sample)) {
+    return sample;
+  }
   cachedFresh = sample;
   return sample;
 }
 
 function cacheStillGood(): LocationSample | null {
-  if (!cachedFresh) {
+  if (!cachedFresh || !isPlausibleLocation(cachedFresh)) {
     return null;
   }
   if (Date.now() - cachedFresh.timestamp > FRESH_TTL_MS) {

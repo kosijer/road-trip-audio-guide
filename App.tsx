@@ -68,6 +68,9 @@ import type { TripStatus } from './src/types';
 
 type Overlay = 'none' | 'settings' | 'profile';
 
+/** Warm-start apps skip launch reset — clear ephemeral UI after a long pause. */
+const SESSION_STALE_MS = 30 * 60 * 1000;
+
 function App() {
   return (
     <SafeAreaProvider>
@@ -95,8 +98,31 @@ function AppScreen() {
   const appStateRef = useRef<AppStateStatus>(
     (AppState.currentState as AppStateStatus | null) ?? 'active',
   );
+  const backgroundedAtRef = useRef<number | null>(null);
 
   useEffect(() => {
+    const warmLocation = () => {
+      void warmFreshLocation().then(here => {
+        if (here) {
+          setStatus(prev => ({ ...prev, lastLocation: here }));
+        }
+      });
+    };
+
+    const wipeEphemeralSession = async () => {
+      try {
+        const prior = await getStatus();
+        if (prior.tripActive) {
+          await endTrip();
+        }
+      } catch (error) {
+        console.warn('endTrip on session wipe failed', error);
+      }
+      const nextStatus = await resetSessionOnLaunch();
+      setStatus(nextStatus);
+      warmLocation();
+    };
+
     void (async () => {
       // Soft-stop any prior trip keep-alive before wiping session state.
       try {
@@ -137,11 +163,7 @@ function AppScreen() {
       }
       setReady(true);
       // Warm GPS once so Around → Drive share the same fix.
-      void warmFreshLocation().then(here => {
-        if (here) {
-          setStatus(prev => ({ ...prev, lastLocation: here }));
-        }
-      });
+      warmLocation();
       void refreshWeatherFromDevice().then(snap => {
         if (snap) {
           setWeather(snap);
@@ -184,10 +206,28 @@ function AppScreen() {
       void refreshWeatherFromDevice();
     }, WEATHER_STALE_MS);
     const appStateSub = AppState.addEventListener('change', next => {
-      const wasBackground = appStateRef.current.match(/inactive|background/);
+      const prev = appStateRef.current;
+      const wasBackground = Boolean(prev.match(/inactive|background/));
       appStateRef.current = next;
-      if (wasBackground && next === 'active' && isWeatherStale()) {
-        void refreshWeatherFromDevice();
+      if (next.match(/inactive|background/)) {
+        if (backgroundedAtRef.current == null) {
+          backgroundedAtRef.current = Date.now();
+        }
+        return;
+      }
+      if (wasBackground && next === 'active') {
+        const awayMs =
+          backgroundedAtRef.current != null
+            ? Date.now() - backgroundedAtRef.current
+            : 0;
+        backgroundedAtRef.current = null;
+        // Warm start after a long pause still held lastPoi / “Latest place”.
+        if (awayMs >= SESSION_STALE_MS) {
+          void wipeEphemeralSession();
+        }
+        if (isWeatherStale()) {
+          void refreshWeatherFromDevice();
+        }
       }
     });
     return () => {

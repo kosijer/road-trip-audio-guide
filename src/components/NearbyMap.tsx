@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, Circle, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import { isPlausibleLocation } from '../geo';
 import { t } from '../i18n';
 import { colors, radius, sharedStyles, space } from '../theme';
 import type { GeoPoint } from '../types';
@@ -65,10 +66,13 @@ export function NearbyMap({
 
   const fitPoints = useMemo((): GeoPoint[] => {
     const points: GeoPoint[] = [];
-    if (center) {
+    if (center && isPlausibleLocation(center)) {
       points.push(center);
     }
     for (const m of markers) {
+      if (!isPlausibleLocation(m)) {
+        continue;
+      }
       points.push({ latitude: m.latitude, longitude: m.longitude });
     }
     return points;
@@ -106,7 +110,11 @@ export function NearbyMap({
     }
   }, [fitPoints, region]);
 
-  if (!center || !region) {
+  const usableCenter =
+    center && isPlausibleLocation(center) ? center : null;
+  const usableMarkers = markers.filter(isPlausibleLocation);
+
+  if (!usableCenter || !region) {
     return (
       <View style={[styles.placeholder, { height }]}>
         <Text style={sharedStyles.hint}>{t('mapWaiting')}</Text>
@@ -127,20 +135,20 @@ export function NearbyMap({
         toolbarEnabled={false}
         liteMode={false}>
         <Marker
-          coordinate={center}
+          coordinate={usableCenter}
           title={t('mapYou')}
           pinColor={colors.accent}
         />
         {showRadius ? (
           <Circle
-            center={center}
+            center={usableCenter}
             radius={radiusM}
             strokeColor={colors.accent}
             fillColor="rgba(255, 122, 89, 0.14)"
             strokeWidth={1}
           />
         ) : null}
-        {markers.map(marker => (
+        {usableMarkers.map(marker => (
           <Marker
             key={marker.id}
             coordinate={{

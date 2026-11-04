@@ -4,7 +4,7 @@ import { MoodRadios } from '../components/MoodRadios';
 import { NearbyMap } from '../components/NearbyMap';
 import { PlaceStoryCard } from '../components/PlaceStoryCard';
 import { useI18n } from '../hooks/useI18n';
-import { haversineM } from '../geo';
+import { haversineM, isPlausibleLocation } from '../geo';
 import { config } from '../config';
 import {
   getSessionState,
@@ -46,7 +46,10 @@ function nearestFromBatch(
     return null;
   }
   if (!here) {
-    const first = batch.pois[0];
+    const first = batch.pois.find(isPlausibleLocation);
+    if (!first) {
+      return null;
+    }
     return {
       id: first.id,
       title: first.title,
@@ -57,6 +60,9 @@ function nearestFromBatch(
   let best: SuggestedPlace | null = null;
   let bestD = Infinity;
   for (const poi of batch.pois) {
+    if (!isPlausibleLocation(poi)) {
+      continue;
+    }
     const d = haversineM(here, {
       latitude: poi.latitude,
       longitude: poi.longitude,
@@ -127,7 +133,12 @@ export function DriveScreen({
     (status.drivePhase === 'teaser' || status.drivePhase === 'hold');
 
   const suggested = useMemo((): SuggestedPlace | null => {
-    if (status.tripActive && upcoming) {
+    if (!status.tripActive) {
+      // Idle Drive: map may still show plan cache pins, but never a stale
+      // “Latest place” card from a previous session.
+      return nearestFromBatch(batch, mapCenter);
+    }
+    if (upcoming) {
       return {
         id: upcoming.id,
         title: upcoming.title,
@@ -136,22 +147,19 @@ export function DriveScreen({
         distanceM: upcoming.distanceM,
       };
     }
-    if (status.tripActive) {
-      const focus = status.lastPoiMarkers?.[0];
-      if (!focus || !mapCenter) {
-        return null;
-      }
-      const distanceM = haversineM(mapCenter, {
-        latitude: focus.latitude,
-        longitude: focus.longitude,
-      });
-      // Drop distant last-story pins from the map fit so the camera follows you.
-      if (distanceM > config.driveMapFitLastPoiMaxM) {
-        return null;
-      }
-      return { ...focus, distanceM };
+    const focus = status.lastPoiMarkers?.[0];
+    if (!focus || !mapCenter) {
+      return null;
     }
-    return nearestFromBatch(batch, mapCenter);
+    const distanceM = haversineM(mapCenter, {
+      latitude: focus.latitude,
+      longitude: focus.longitude,
+    });
+    // Drop distant last-story pins from the map fit so the camera follows you.
+    if (distanceM > config.driveMapFitLastPoiMaxM) {
+      return null;
+    }
+    return { ...focus, distanceM };
   }, [batch, mapCenter, status.lastPoiMarkers, status.tripActive, upcoming]);
 
   const markers = useMemo(
@@ -322,15 +330,6 @@ export function DriveScreen({
               : undefined
           }
           busy={busy}
-        />
-      ) : suggested && !status.tripActive ? (
-        <PlaceStoryCard
-          title={suggested.title}
-          distanceLabel={distanceLabel}
-          latitude={suggested.latitude}
-          longitude={suggested.longitude}
-          mapsMode={batch?.mode === 'walking' ? 'walking' : 'driving'}
-          showRating={false}
         />
       ) : (
         <Text style={sharedStyles.hint}>{t('driveNoSuggestion')}</Text>

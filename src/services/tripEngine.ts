@@ -1,5 +1,6 @@
 import { DeviceEventEmitter } from 'react-native';
 import { config } from '../config';
+import { isPlausibleLocation } from '../geo';
 import { getNarrationLanguage, t } from '../i18n';
 import { getSessionState } from '../preferences';
 import type { LocationSample, Poi, TripStatus } from '../types';
@@ -215,6 +216,11 @@ export async function endTrip(): Promise<TripStatus> {
     drivePhase: 'idle',
     upcomingPoi: undefined,
     teaserText: undefined,
+    lastNarration: undefined,
+    lastPoiTitle: undefined,
+    lastPoiIds: undefined,
+    lastPoiMarkers: undefined,
+    lastExposureId: undefined,
     message: t('tripIdle'),
   });
 }
@@ -566,12 +572,13 @@ async function deliverNarration(
   const llmCalls = await getLlmCalls();
   // Map shows only the focal place (Gemini may still weave nearby context into the script).
   const focus = selected[0];
+  const focusOk = focus && isPlausibleLocation(focus.location);
   await patch({
     lastNarration: text,
     lastPoiTitle: focus?.title,
     lastPoiIds: selected.map(poi => poi.id),
     lastExposureId,
-    lastPoiMarkers: focus
+    lastPoiMarkers: focusOk
       ? [
           {
             id: focus.id,

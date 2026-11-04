@@ -11,6 +11,7 @@ import {
   setSessionMood,
   type SessionMood,
 } from '../preferences';
+import { isPlausibleLocation } from '../geo';
 import { getFreshLocation } from '../services/location';
 import {
   suggestNearbyPlaces,
@@ -142,14 +143,24 @@ export function AroundScreen({
   );
 
   const mapMarkers = useMemo(() => {
+    // Only plot story pins after a successful Around me this visit — stale
+    // lastPoiMarkers (e.g. Null Island from a bad fix) used to blow out the map.
+    if (!hasAroundResult) {
+      return [];
+    }
     const byId = new Map<
       string,
       { id: string; title: string; latitude: number; longitude: number }
     >();
     for (const m of status.lastPoiMarkers ?? []) {
-      byId.set(m.id, m);
+      if (isPlausibleLocation(m)) {
+        byId.set(m.id, m);
+      }
     }
     for (const item of more ?? []) {
+      if (!isPlausibleLocation(item)) {
+        continue;
+      }
       byId.set(item.id, {
         id: item.id,
         title: item.title,
@@ -158,7 +169,7 @@ export function AroundScreen({
       });
     }
     return [...byId.values()];
-  }, [more, status.lastPoiMarkers]);
+  }, [hasAroundResult, more, status.lastPoiMarkers]);
 
   return (
     <ScrollView

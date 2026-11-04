@@ -418,7 +418,13 @@ export async function getStatus(): Promise<TripStatus> {
 
 export async function setStatus(patch: Partial<TripStatus>): Promise<TripStatus> {
   const current = await getStatus();
-  const next = { ...current, ...patch };
+  const next: TripStatus = { ...current, ...patch };
+  // Drop keys explicitly cleared with `undefined` so endTrip / resets stick.
+  for (const key of Object.keys(patch) as (keyof TripStatus)[]) {
+    if (patch[key] === undefined) {
+      delete next[key];
+    }
+  }
   await AsyncStorage.setItem(KEY.status, JSON.stringify(next));
   return next;
 }

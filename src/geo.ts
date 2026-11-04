@@ -2,6 +2,21 @@ import type { GeoPoint } from './types';
 
 const DEFAULT_CELL_DEG = 0.045;
 
+/** Reject NaN, out-of-range, and Null Island / emulator (0,0) defaults. */
+export function isPlausibleLocation(point: GeoPoint): boolean {
+  const { latitude, longitude } = point;
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return false;
+  }
+  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+    return false;
+  }
+  if (Math.abs(latitude) < 0.01 && Math.abs(longitude) < 0.01) {
+    return false;
+  }
+  return true;
+}
+
 export function haversineM(a: GeoPoint, b: GeoPoint): number {
   const R = 6371000;
   const dLat = toRad(b.latitude - a.latitude);

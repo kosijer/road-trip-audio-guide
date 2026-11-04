@@ -1,4 +1,9 @@
-import { haversineM, sampleAlongRoute, sampleAlongRouteByCount } from '../geo';
+import {
+  haversineM,
+  isPlausibleLocation,
+  sampleAlongRoute,
+  sampleAlongRouteByCount,
+} from '../geo';
 import {
   humanCategory,
   searchPointsForPlaceTarget,
@@ -6,6 +11,17 @@ import {
 import { interestingness, scoreKeywords } from '../services/poi/score';
 
 describe('geo', () => {
+  it('rejects Null Island and non-finite coordinates', () => {
+    expect(isPlausibleLocation({ latitude: 0, longitude: 0 })).toBe(false);
+    expect(isPlausibleLocation({ latitude: 0.001, longitude: -0.001 })).toBe(
+      false,
+    );
+    expect(isPlausibleLocation({ latitude: NaN, longitude: -0.1 })).toBe(false);
+    expect(isPlausibleLocation({ latitude: 51.5, longitude: -0.12 })).toBe(
+      true,
+    );
+  });
+
   it('computes haversine distance for nearby points', () => {
     const knossos = { latitude: 35.2978, longitude: 25.1631 };
     const heraklion = { latitude: 35.3387, longitude: 25.1442 };
