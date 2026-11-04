@@ -107,10 +107,25 @@ export function DriveScreen({
     });
   }, [status.prefetchCount, status.tripActive]);
 
+  const lastLat = status.lastLocation?.latitude;
+  const lastLon = status.lastLocation?.longitude;
+  const tripActive = status.tripActive;
+
   useEffect(() => {
-    if (status.lastLocation) {
-      setMapCenter(status.lastLocation);
+    // Active trip: follow tick locations only (not live simulate peek).
+    if (
+      lastLat != null &&
+      lastLon != null &&
+      Number.isFinite(lastLat) &&
+      Number.isFinite(lastLon)
+    ) {
+      setMapCenter({ latitude: lastLat, longitude: lastLon });
+      return;
     }
+    if (tripActive) {
+      return;
+    }
+    // Idle + no stored fix yet: one warm read for the “you” pin.
     let cancelled = false;
     void getFreshLocation()
       .then(here => {
@@ -124,7 +139,7 @@ export function DriveScreen({
     return () => {
       cancelled = true;
     };
-  }, [status.lastLocation]);
+  }, [lastLat, lastLon, tripActive]);
 
   const upcoming = status.upcomingPoi;
   const showComingUp =
@@ -209,8 +224,14 @@ export function DriveScreen({
   }, [setStatus, skipBusy]);
 
   const focus = status.lastPoiMarkers?.[0];
+  // Only show story after a Drive full narration this trip — not Around leftovers.
   const showNarrated = Boolean(
-    status.lastNarration && status.tripActive && !showComingUp,
+    status.lastNarration &&
+      status.tripActive &&
+      !showComingUp &&
+      (status.drivePhase === 'full' ||
+        status.drivePhase === 'cooldown' ||
+        status.drivePhase === 'idle'),
   );
   const distanceLabel =
     suggested?.distanceM != null
@@ -232,8 +253,8 @@ export function DriveScreen({
         <NearbyMap
           center={mapCenter}
           markers={markers}
-          radiusM={config.drivingPoiRadiusM}
           showRadius={false}
+          cameraMode="follow"
         />
       </View>
       {status.tripActive ? (

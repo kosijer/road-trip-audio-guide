@@ -107,9 +107,12 @@ export function announceLeadMinutes(speedKmh: number): {
   return { narrowMin, wideMin };
 }
 
-/** Soft floor: avoid teasing places that are already almost on top of you. */
+/**
+ * Soft floor: avoid teasing places that are already almost on top of you.
+ * Includes room for teaser TTS + hold before the full story starts.
+ */
 export function minUsefulEtaMinutes(narrowLeadMin: number): number {
-  return Math.max(1.5, narrowLeadMin * 0.45);
+  return Math.max(2.5, narrowLeadMin * 0.55);
 }
 
 export function evaluateCorridor(

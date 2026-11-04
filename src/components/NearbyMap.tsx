@@ -20,6 +20,11 @@ type Props = {
   height?: number;
   /** Draw search radius circle around center (Around). */
   showRadius?: boolean;
+  /**
+   * `bounds` (default): fit camera to you + markers.
+   * `follow`: keep the camera on you; markers stay visible but don’t zoom out.
+   */
+  cameraMode?: 'bounds' | 'follow';
 };
 
 const DEFAULT_DELTA = 0.02;
@@ -61,6 +66,7 @@ export function NearbyMap({
   radiusM = 800,
   height = 220,
   showRadius = true,
+  cameraMode = 'bounds',
 }: Props) {
   const mapRef = useRef<MapView | null>(null);
 
@@ -69,6 +75,9 @@ export function NearbyMap({
     if (center && isPlausibleLocation(center)) {
       points.push(center);
     }
+    if (cameraMode === 'follow') {
+      return points;
+    }
     for (const m of markers) {
       if (!isPlausibleLocation(m)) {
         continue;
@@ -76,29 +85,34 @@ export function NearbyMap({
       points.push({ latitude: m.latitude, longitude: m.longitude });
     }
     return points;
-  }, [center, markers]);
+  }, [cameraMode, center, markers]);
 
   const region: Region | null = useMemo(() => {
-    if (fitPoints.length >= 2) {
+    if (cameraMode !== 'follow' && fitPoints.length >= 2) {
       return regionForPoints(fitPoints);
     }
-    if (!center) {
+    if (!center || !isPlausibleLocation(center)) {
       return null;
     }
-    const latDelta = Math.max(DEFAULT_DELTA, (radiusM / 111_000) * 2.4);
+    // Follow / single-point: keep a tight street-level frame (ignore huge
+    // discovery radii like drivingPoiRadiusM which only blow the camera out).
+    const followDelta =
+      cameraMode === 'follow'
+        ? DEFAULT_DELTA
+        : Math.max(DEFAULT_DELTA, (radiusM / 111_000) * 2.4);
     return {
       latitude: center.latitude,
       longitude: center.longitude,
-      latitudeDelta: latDelta,
-      longitudeDelta: latDelta,
+      latitudeDelta: followDelta,
+      longitudeDelta: followDelta,
     };
-  }, [center, fitPoints, radiusM]);
+  }, [cameraMode, center, fitPoints, radiusM]);
 
   useEffect(() => {
     if (!mapRef.current || fitPoints.length === 0) {
       return;
     }
-    if (fitPoints.length >= 2) {
+    if (cameraMode !== 'follow' && fitPoints.length >= 2) {
       mapRef.current.fitToCoordinates(fitPoints, {
         edgePadding: EDGE,
         animated: true,
@@ -108,7 +122,7 @@ export function NearbyMap({
     if (region) {
       mapRef.current.animateToRegion(region, 350);
     }
-  }, [fitPoints, region]);
+  }, [cameraMode, fitPoints, region]);
 
   const usableCenter =
     center && isPlausibleLocation(center) ? center : null;

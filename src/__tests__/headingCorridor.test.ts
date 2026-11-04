@@ -154,5 +154,7 @@ describe('eta / lookahead', () => {
     expect(minUsefulEtaMinutes(city.narrowMin)).toBeLessThan(
       city.narrowMin,
     );
+    // Keep enough lead for teaser + hold (~2.5+ min), not “already beside it”.
+    expect(minUsefulEtaMinutes(city.narrowMin)).toBeGreaterThanOrEqual(2.5);
   });
 });

@@ -264,14 +264,17 @@ async function selectCandidate(
     return null;
   }
 
-  // Prefer places with enough lead time; fall back if everything is close.
+  // Prefer places with enough lead time. Never tease something already on top
+  // of you — wait for the next tick instead of falling back to “too late”.
   const minEta = minUsefulEtaMinutes(leads.narrowMin);
   const withEta = hits.map(h => ({
     ...h,
     etaMin: etaMinutes(h.corridor.distanceM, sample.speedKmh),
   }));
-  const farEnough = withEta.filter(h => h.etaMin >= minEta);
-  const pool = farEnough.length > 0 ? farEnough : withEta;
+  const pool = withEta.filter(h => h.etaMin >= minEta);
+  if (pool.length === 0) {
+    return null;
+  }
 
   // Bias toward the speed-appropriate lead (highway ≈ 15 min, not 2).
   const idealEta = leads.narrowMin;

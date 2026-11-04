@@ -173,11 +173,19 @@ export async function startTrip(): Promise<TripStatus> {
   resetDriveQueue();
   motionSamples.length = 0;
   cachedSpeedThresholdKmh = await getSpeedThresholdKmh();
+  // Wipe Around / prior-trip story so Drive never inherits “Latest place”.
   await patch({
     ...emptyStatus(),
     tripActive: true,
     llmCalls: 0,
     drivePhase: 'idle',
+    lastNarration: undefined,
+    lastPoiTitle: undefined,
+    lastPoiIds: undefined,
+    lastPoiMarkers: undefined,
+    lastExposureId: undefined,
+    upcomingPoi: undefined,
+    teaserText: undefined,
     message: t('tripActive'),
   });
 

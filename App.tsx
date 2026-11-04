@@ -40,6 +40,7 @@ import {
   getSpeechMuted,
   getStatus,
   resetSessionOnLaunch,
+  setStatus as persistStatus,
 } from './src/services/store';
 import {
   endTrip,
@@ -303,6 +304,24 @@ function AppScreen() {
     setOverlay('none');
     setMenuOpen(false);
     setTab(next);
+    // Around story must not appear as Drive “Latest place”.
+    if (next === 'drive') {
+      void (async () => {
+        const cur = await getStatus();
+        if (cur.tripActive || !cur.lastNarration) {
+          return;
+        }
+        const cleared = await persistStatus({
+          lastNarration: undefined,
+          lastPoiTitle: undefined,
+          lastPoiIds: undefined,
+          lastPoiMarkers: undefined,
+          lastExposureId: undefined,
+          message: '',
+        });
+        setStatus(cleared);
+      })();
+    }
   }, []);
 
   const onMenuAction = useCallback(
