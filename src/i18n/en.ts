@@ -189,7 +189,7 @@ export const en: Record<StringKey, string> = {
   debugOff: 'Debug location off (real GPS)',
   debugSimulateMotion: 'Simulate driving motion',
   debugSimulateMotionHint:
-    'With a debug location, move east at ~48 km/h so Drive can demo “coming up” teasers on an emulator.',
+    'While a Drive trip is active, move ENE (~65°) at ~48 km/h from the fake pin so coming-up teasers work on an emulator. Around / Plan stay on the static pin.',
   uiLanguage: 'App language',
   narrationLanguage: 'Narration language',
   narrationFollowUi: 'Match app language',

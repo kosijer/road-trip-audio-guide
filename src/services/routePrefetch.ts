@@ -95,6 +95,8 @@ export async function runPrefetch(
   const batch: PrefetchBatch = {
     origin: origin.trim(),
     destination: destination.trim(),
+    originLatitude: samples[0]?.latitude,
+    originLongitude: samples[0]?.longitude,
     placeTarget,
     sampleCount: samples.length,
     createdAt: Date.now(),

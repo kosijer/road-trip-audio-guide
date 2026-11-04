@@ -79,9 +79,8 @@ export function PlanScreen({ status, setStatus, busy }: Props) {
   const [batch, setBatch] = useState<PrefetchBatch | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showPlaceSettings, setShowPlaceSettings] = useState(false);
-  const [userLocation, setUserLocation] = useState<GeoPoint | null>(
-    status.lastLocation ?? null,
-  );
+  /** Map “you” pin = plan origin, never the live Drive sim fix. */
+  const [planPin, setPlanPin] = useState<GeoPoint | null>(null);
   const [tasteById, setTasteById] = useState<
     Record<string, ExposureOutcome | undefined>
   >({});
@@ -90,8 +89,23 @@ export function PlanScreen({ status, setStatus, busy }: Props) {
   const working = inspiring || prefetching;
   const needHere =
     planMode === 'loop' ? !inspireOrigin.trim() : !origin.trim();
-  const locating = needHere && userLocation == null;
+  const locating = needHere && planPin == null;
   const blocked = busy || working || locating;
+
+  const mapUserLocation = useMemo((): GeoPoint | null => {
+    if (
+      batch?.originLatitude != null &&
+      batch?.originLongitude != null &&
+      Number.isFinite(batch.originLatitude) &&
+      Number.isFinite(batch.originLongitude)
+    ) {
+      return {
+        latitude: batch.originLatitude,
+        longitude: batch.originLongitude,
+      };
+    }
+    return planPin;
+  }, [batch, planPin]);
 
   const onTaste = useCallback(
     async (poiId: string, next: 'liked' | 'not_interested') => {
@@ -117,20 +131,25 @@ export function PlanScreen({ status, setStatus, busy }: Props) {
       } else if (existing) {
         setPlanMode('ab');
       }
+      if (
+        existing?.originLatitude != null &&
+        existing?.originLongitude != null
+      ) {
+        setPlanPin({
+          latitude: existing.originLatitude,
+          longitude: existing.originLongitude,
+        });
+      }
     })();
   }, []);
 
   useEffect(() => {
-    // Show last known immediately, then always refresh — stale trip
-    // samples can be hours old and misplace the “you” pin on the map.
-    if (status.lastLocation) {
-      setUserLocation(status.lastLocation);
-    }
+    // Seed once for empty-origin “here” — do not chase Drive lastLocation.
     let cancelled = false;
     void getFreshLocation()
       .then(here => {
         if (!cancelled) {
-          setUserLocation(here);
+          setPlanPin(prev => prev ?? here);
         }
       })
       .catch(() => {
@@ -139,7 +158,7 @@ export function PlanScreen({ status, setStatus, busy }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [status.lastLocation]);
+  }, []);
 
   const onPlaceTarget = useCallback(async (next: PrefetchPlaceTarget) => {
     setPlaceTarget(next);
@@ -198,7 +217,7 @@ export function PlanScreen({ status, setStatus, busy }: Props) {
         };
         label = geo.formattedAddress;
       }
-      setUserLocation(point);
+      setPlanPin(point);
 
       const { stopCount, cacheCount, batch: nextBatch } = await runInspireLoop({
         originLabel: label,
@@ -259,7 +278,7 @@ export function PlanScreen({ status, setStatus, busy }: Props) {
       let from = origin.trim();
       if (!from) {
         const here = await getFreshLocation();
-        setUserLocation(here);
+        setPlanPin(here);
         from = `${here.latitude},${here.longitude}`;
       }
       const { count, batch: nextBatch } = await runPrefetch(
@@ -268,6 +287,15 @@ export function PlanScreen({ status, setStatus, busy }: Props) {
         message => setPrefetchProgress(message),
       );
       setBatch(nextBatch);
+      if (
+        nextBatch.originLatitude != null &&
+        nextBatch.originLongitude != null
+      ) {
+        setPlanPin({
+          latitude: nextBatch.originLatitude,
+          longitude: nextBatch.originLongitude,
+        });
+      }
       setTasteById({});
       if (!origin.trim()) {
         setOrigin(from);
@@ -557,7 +585,7 @@ export function PlanScreen({ status, setStatus, busy }: Props) {
           <View style={sharedStyles.mapCard}>
             <CorridorMap
               markers={markers}
-              userLocation={userLocation}
+              userLocation={mapUserLocation}
               height={210}
             />
           </View>

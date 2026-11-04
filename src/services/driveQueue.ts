@@ -271,7 +271,15 @@ async function selectCandidate(
     }));
   const farNarrow = withEta(narrowHits).filter(h => h.etaMin >= minEta);
   const farWide = withEta(wideHits).filter(h => h.etaMin >= minEta);
-  const pool = farNarrow.length > 0 ? farNarrow : farWide;
+  let pool = farNarrow.length > 0 ? farNarrow : farWide;
+  // Soft fallback: still ahead (≥1 min / ~400 m), so demos aren’t silent for minutes.
+  if (pool.length === 0) {
+    const softOk = (h: { etaMin: number; corridor: CorridorHit }) =>
+      h.etaMin >= 1 && h.corridor.distanceM >= 400;
+    const softNarrow = withEta(narrowHits).filter(softOk);
+    const softWide = withEta(wideHits).filter(softOk);
+    pool = softNarrow.length > 0 ? softNarrow : softWide;
+  }
   if (pool.length === 0) {
     return null;
   }

@@ -330,6 +330,8 @@ export async function runInspireLoop(input: {
   const batch: PrefetchBatch = {
     origin: input.originLabel,
     destination: `Loop · ${input.mode} · ${hours}`,
+    originLatitude: input.origin.latitude,
+    originLongitude: input.origin.longitude,
     placeTarget: cached.length,
     sampleCount: stops.length,
     createdAt: Date.now(),

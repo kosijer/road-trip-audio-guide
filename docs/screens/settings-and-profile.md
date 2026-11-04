@@ -16,7 +16,7 @@ Tune how Along listens and speaks; debug without a car.
 | Speech rate | TTS speed 0.50×–1.50× |
 | Trip speed threshold | Drive counts as “moving” above this (walk ~3–5, bike ~8–12, car ~25) |
 | Debug location | Fake pin: London / Notting Hill / Westminster / Belgrade / real GPS |
-| Simulate driving motion | With a fake pin: move east ~48 km/h so Drive demos work on emulator |
+| Simulate driving motion | During Drive trip only: move ENE ~48 km/h from the fake pin (Around/Plan stay static) |
 | Diagnostics | Last location, LLM call count, prefetch count |
 
 ### Example — Emulator Drive demo
@@ -24,7 +24,7 @@ Tune how Along listens and speaks; debug without a car.
 1. Settings → Debug location → **London**  
 2. Enable **Simulate driving motion**  
 3. Drive → Start Trip  
-4. App reports moving ~48 km/h heading east  
+4. App reports moving ~48 km/h heading ENE  
 5. Coming-up teasers use town-scale lead times for that speed  
 
 ### Example — Real bike trip

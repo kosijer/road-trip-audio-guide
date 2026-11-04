@@ -13,7 +13,7 @@ import {
 } from '../preferences';
 import {
   getFreshLocation,
-  isSimulateMotion,
+  isDriveSimMoving,
   peekFreshLocation,
 } from '../services/location';
 import { prefetchBatchUsableForDrive } from '../services/prefetch';
@@ -147,7 +147,7 @@ export function DriveScreen({
 
   useEffect(() => {
     // Between engine ticks, animate the debug pin so motion doesn’t feel stepped.
-    if (!tripActive || !isSimulateMotion()) {
+    if (!tripActive || !isDriveSimMoving()) {
       return;
     }
     const id = setInterval(() => {

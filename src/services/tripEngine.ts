@@ -21,9 +21,11 @@ import {
 } from './store';
 import {
   getCurrentLocation,
+  getLocationOverride,
   getRealLocation,
   getTripLocation,
   requestLocationPermission,
+  setDriveSimActive,
 } from './location';
 import { generateNarration } from './narration';
 import { rankPois } from './poi/discover';
@@ -173,12 +175,16 @@ export async function startTrip(): Promise<TripStatus> {
   resetDriveQueue();
   motionSamples.length = 0;
   cachedSpeedThresholdKmh = await getSpeedThresholdKmh();
+  // Motion sim runs only during the trip, starting at the fake pin.
+  setDriveSimActive(true);
+  const startPin = await getTripLocation().catch(() => null);
   // Wipe Around / prior-trip story so Drive never inherits “Latest place”.
   await patch({
     ...emptyStatus(),
     tripActive: true,
     llmCalls: 0,
     drivePhase: 'idle',
+    lastLocation: startPin ?? undefined,
     lastNarration: undefined,
     lastPoiTitle: undefined,
     lastPoiIds: undefined,
@@ -218,10 +224,23 @@ export async function endTrip(): Promise<TripStatus> {
   }
   resetDriveQueue();
   await stopSpeaking();
+  setDriveSimActive(false);
+  // Snap status pin back to the static fake location (or drop the moving fix).
+  const override = getLocationOverride();
+  const parked = override
+    ? {
+        latitude: override.latitude,
+        longitude: override.longitude,
+        speedKmh: 0,
+        timestamp: Date.now(),
+        accuracyM: 5,
+      }
+    : undefined;
   return patch({
     tripActive: false,
     moving: false,
     drivePhase: 'idle',
+    lastLocation: parked,
     upcomingPoi: undefined,
     teaserText: undefined,
     lastNarration: undefined,

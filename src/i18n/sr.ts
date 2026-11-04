@@ -190,7 +190,7 @@ export const sr: Record<StringKey, string> = {
   debugOff: 'Debug lokacija isključena (pravi GPS)',
   debugSimulateMotion: 'Simuliraj kretanje (vožnja)',
   debugSimulateMotionHint:
-    'Uz debug lokaciju pomera te na istok ~48 km/h da Drive može da demo-uje „coming up“ na emulatoru.',
+    'Dok je Drive trip aktivan, pomera te ENE (~65°) ~48 km/h od fake pina zbog teaser-a na emulatoru. Around / Plan ostaju na statičkom pinu.',
   uiLanguage: 'Jezik aplikacije',
   narrationLanguage: 'Jezik priče',
   narrationFollowUi: 'Prati jezik aplikacije',

@@ -84,6 +84,9 @@ export type RoutePrefetchInput = {
 export type PrefetchBatch = {
   origin: string;
   destination: string;
+  /** Resolved plan origin for the map “you” pin (named place or GPS). */
+  originLatitude?: number;
+  originLongitude?: number;
   /** How many places the user asked to keep. */
   placeTarget: number;
   /** Internal corridor search points used to find them. */

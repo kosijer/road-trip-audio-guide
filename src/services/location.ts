@@ -46,12 +46,17 @@ const FRESH_TTL_MS = 120_000;
 let cachedFresh: LocationSample | null = null;
 let freshInflight: Promise<LocationSample> | null = null;
 
-/** Emulator demo: move east from the fake pin at highway-ish speed. */
+/**
+ * Emulator demo motion — only while a Drive trip is active.
+ * Heading ~ENE (25° north of due east) so London demos stay near denser POIs.
+ */
 const DEMO_SPEED_KMH = 48;
-const DEMO_HEADING_DEG = 90;
+const DEMO_HEADING_DEG = 65;
 /** Rebase the demo path before spherical math drifts toward Null Island. */
 const DEMO_MAX_DISTANCE_M = 150_000;
 let simulateMotion = false;
+/** Gated by Start/End Trip so Around / Plan keep a static fake pin. */
+let driveSimActive = false;
 let motionOrigin: GeoPoint | null = null;
 let motionStartedAt = 0;
 
@@ -63,20 +68,42 @@ export function isSimulateMotion(): boolean {
   return simulateMotion;
 }
 
+/** True only during an active Drive trip with simulate-motion enabled. */
+export function isDriveSimMoving(): boolean {
+  return simulateMotion && driveSimActive && locationOverride != null;
+}
+
 export function setSimulateMotion(on: boolean): boolean {
   simulateMotion = on && locationOverride != null;
-  if (simulateMotion && locationOverride) {
-    motionOrigin = {
-      latitude: locationOverride.latitude,
-      longitude: locationOverride.longitude,
-    };
-    motionStartedAt = Date.now();
-  } else {
+  if (!simulateMotion) {
+    driveSimActive = false;
     motionOrigin = null;
     motionStartedAt = 0;
   }
   cachedFresh = locationOverride ? overrideSample() : null;
   return simulateMotion;
+}
+
+/**
+ * Arm / disarm moving override for Drive ticks only.
+ * Each Start Trip resets the path at the fake pin so demos don’t start
+ * kilometres east of London from a previous idle clock.
+ */
+export function setDriveSimActive(on: boolean): boolean {
+  driveSimActive = on && simulateMotion && locationOverride != null;
+  if (driveSimActive && locationOverride) {
+    motionOrigin = {
+      latitude: locationOverride.latitude,
+      longitude: locationOverride.longitude,
+    };
+    motionStartedAt = Date.now();
+    cachedFresh = overrideSample();
+  } else {
+    motionOrigin = null;
+    motionStartedAt = 0;
+    cachedFresh = locationOverride ? overrideSample() : null;
+  }
+  return driveSimActive;
 }
 
 export function setLocationOverride(
@@ -85,6 +112,7 @@ export function setLocationOverride(
   if (!next) {
     locationOverride = null;
     simulateMotion = false;
+    driveSimActive = false;
     motionOrigin = null;
     motionStartedAt = 0;
     return null;
@@ -95,7 +123,7 @@ export function setLocationOverride(
     latitude: spot.latitude,
     longitude: spot.longitude,
   };
-  if (simulateMotion) {
+  if (driveSimActive && simulateMotion) {
     motionOrigin = {
       latitude: spot.latitude,
       longitude: spot.longitude,
@@ -241,7 +269,8 @@ function offsetAlongHeading(
 
 function overrideSample(): LocationSample {
   const now = Date.now();
-  if (simulateMotion && locationOverride) {
+  const moving = simulateMotion && driveSimActive && locationOverride;
+  if (moving) {
     // Fast Refresh / partial re-init can leave motion clock at 0 → huge jump.
     if (!motionOrigin || motionStartedAt <= 0) {
       motionOrigin = {
