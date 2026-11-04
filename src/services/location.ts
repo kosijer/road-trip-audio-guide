@@ -1,7 +1,11 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PermissionsAndroid, Platform } from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
 import { isPlausibleLocation, offsetAlongHeading } from '../geo';
 import type { GeoPoint, LocationSample } from '../types';
+
+const KEY_FAKE_LOCATION = 'rtag:fakeLocationId';
+const KEY_SIMULATE_MOTION = 'rtag:simulateMotion';
 
 Geolocation.setRNConfiguration({
   skipPermissionRequests: true,
@@ -86,6 +90,7 @@ export function setSimulateMotion(on: boolean): boolean {
     motionStartedAt = 0;
   }
   cachedFresh = locationOverride ? overrideSample() : null;
+  void persistLocationDebug();
   return simulateMotion;
 }
 
@@ -120,6 +125,8 @@ export function setLocationOverride(
     driveSimActive = false;
     motionOrigin = null;
     motionStartedAt = 0;
+    cachedFresh = null;
+    void persistLocationDebug();
     return null;
   }
   const spot = FAKE_LOCATIONS[next];
@@ -136,7 +143,54 @@ export function setLocationOverride(
     motionStartedAt = Date.now();
   }
   cachedFresh = overrideSample();
+  void persistLocationDebug();
   return locationOverride;
+}
+
+async function persistLocationDebug(): Promise<void> {
+  try {
+    if (!locationOverride) {
+      await AsyncStorage.removeMany([KEY_FAKE_LOCATION, KEY_SIMULATE_MOTION]);
+      return;
+    }
+    const id = (Object.keys(FAKE_LOCATIONS) as FakeLocationId[]).find(
+      key => FAKE_LOCATIONS[key].label === locationOverride!.label,
+    );
+    if (!id) {
+      return;
+    }
+    await AsyncStorage.setItem(KEY_FAKE_LOCATION, id);
+    await AsyncStorage.setItem(KEY_SIMULATE_MOTION, simulateMotion ? '1' : '0');
+  } catch (error) {
+    console.warn('persistLocationDebug failed', error);
+  }
+}
+
+/** Restore debug pin / simulate preference after process death. */
+export async function hydrateLocationDebug(): Promise<{
+  fakeLocation: FakeLocationId | null;
+  simulateMotion: boolean;
+}> {
+  try {
+    const [fakeRaw, simRaw] = await Promise.all([
+      AsyncStorage.getItem(KEY_FAKE_LOCATION),
+      AsyncStorage.getItem(KEY_SIMULATE_MOTION),
+    ]);
+    const fake =
+      fakeRaw && fakeRaw in FAKE_LOCATIONS
+        ? (fakeRaw as FakeLocationId)
+        : null;
+    setLocationOverride(fake);
+    setSimulateMotion(simRaw === '1' && fake != null);
+  } catch (error) {
+    console.warn('hydrateLocationDebug failed', error);
+  }
+  return {
+    fakeLocation: (Object.keys(FAKE_LOCATIONS) as FakeLocationId[]).find(
+      id => FAKE_LOCATIONS[id].label === locationOverride?.label,
+    ) ?? null,
+    simulateMotion,
+  };
 }
 
 function speedToKmh(speedMs?: number | null): number {

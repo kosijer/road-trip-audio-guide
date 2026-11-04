@@ -28,7 +28,7 @@ import { SettingsScreen } from './src/screens/SettingsScreen';
 import {
   FAKE_LOCATIONS,
   getFreshLocation,
-  getLocationOverride,
+  hydrateLocationDebug,
   peekFreshLocation,
   setLocationOverride,
   warmFreshLocation,
@@ -155,13 +155,9 @@ function AppScreen() {
       setStatus(nextStatus);
       setSpeechRate(rate);
       setSpeechMutedState(muted);
-      const override = getLocationOverride();
-      if (override) {
-        const match = (Object.keys(FAKE_LOCATIONS) as FakeLocationId[]).find(
-          id => FAKE_LOCATIONS[id].label === override.label,
-        );
-        setFakeLocation(match ?? null);
-      }
+      // Restore debug pin before warming location (survives process death).
+      const debug = await hydrateLocationDebug();
+      setFakeLocation(debug.fakeLocation);
       setReady(true);
       // Warm GPS once so Around → Drive share the same fix.
       warmLocation();

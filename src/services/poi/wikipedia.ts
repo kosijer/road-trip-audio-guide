@@ -69,13 +69,34 @@ export async function searchWikipedia(
       }).toString(),
   );
   const pages = Object.values(details?.query?.pages ?? {});
+  const maxDistM = Math.min(10_000, Math.max(10, Math.round(radiusM))) * 1.25;
   return pages
     .map(page => {
       const match = hits.find(h => h.pageid === page.pageid);
-      const location = {
-        latitude: page.coordinates?.[0]?.lat ?? match?.lat ?? center.latitude,
-        longitude: page.coordinates?.[0]?.lon ?? match?.lon ?? center.longitude,
-      };
+      // Prefer geosearch coords — page "primary" coordinates can be a distant
+      // related place (wrong city) while the geo hit was local.
+      const geoLat = match?.lat;
+      const geoLon = match?.lon;
+      const pageLat = page.coordinates?.[0]?.lat;
+      const pageLon = page.coordinates?.[0]?.lon;
+      let latitude = geoLat ?? pageLat ?? center.latitude;
+      let longitude = geoLon ?? pageLon ?? center.longitude;
+      if (
+        geoLat != null &&
+        geoLon != null &&
+        pageLat != null &&
+        pageLon != null
+      ) {
+        const drift = haversineM(
+          { latitude: geoLat, longitude: geoLon },
+          { latitude: pageLat, longitude: pageLon },
+        );
+        if (drift > 1_500) {
+          latitude = geoLat;
+          longitude = geoLon;
+        }
+      }
+      const location = { latitude, longitude };
       const summary = (page.extract || '').trim();
       const flags = inferFlags(page.title, summary, undefined);
       return {
@@ -90,6 +111,10 @@ export async function searchWikipedia(
         ...flags,
       };
     })
-    .filter(poi => poi.title.length > 0)
+    .filter(
+      poi =>
+        poi.title.length > 0 &&
+        (poi.distanceM == null || poi.distanceM <= maxDistM),
+    )
     .sort((a, b) => (a.distanceM ?? 0) - (b.distanceM ?? 0));
 }

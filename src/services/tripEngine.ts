@@ -1,6 +1,6 @@
 import { DeviceEventEmitter } from 'react-native';
 import { config } from '../config';
-import { isPlausibleLocation } from '../geo';
+import { haversineM, isPlausibleLocation } from '../geo';
 import { getNarrationLanguage, t } from '../i18n';
 import { getSessionState } from '../preferences';
 import type { LocationSample, Poi, TripStatus } from '../types';
@@ -387,16 +387,38 @@ async function narrateViaSlingshot(location: LocationSample): Promise<void> {
     });
     await incrementLlmCalls();
     const place = packaged.place;
+    const placePoint = {
+      latitude: place.lat,
+      longitude: place.lon,
+    };
+    const distM =
+      Number.isFinite(place.lat) && Number.isFinite(place.lon)
+        ? haversineM(location, placePoint)
+        : Infinity;
+    // Guard against workflow returning a far-away landmark (e.g. NYC from London).
+    const maxDistM = Math.max(config.walkingPoiRadiusM * 5, 4_000);
+    if (!isPlausibleLocation(placePoint) || distM > maxDistM) {
+      console.warn(
+        'slingshot place too far; falling back to local',
+        place.title,
+        distM,
+      );
+      await narrateOnce(location, 'walking', {
+        skipHeard: true,
+        forceLocal: true,
+      });
+      return;
+    }
     const poi: Poi = {
       id: `wiki:${place.pageid}`,
       title: place.title,
       summary: place.why || packaged.narration.script.slice(0, 280),
-      location: { latitude: place.lat, longitude: place.lon },
+      location: placePoint,
       source: 'wikipedia',
       extractLength: packaged.narration.script.length,
       isOutdoor: true,
       isIndoorVenue: false,
-      distanceM: place.distMeters,
+      distanceM: place.distMeters ?? distM,
       weatherCaveat: packaged.weather.caution || undefined,
     };
     const extras: string[] = [];
@@ -426,9 +448,13 @@ async function narrateViaSlingshot(location: LocationSample): Promise<void> {
 async function narrateOnce(
   location: LocationSample,
   mode: 'driving' | 'walking',
-  opts?: { skipHeard?: boolean },
+  opts?: { skipHeard?: boolean; forceLocal?: boolean },
 ): Promise<void> {
-  if (mode === 'walking' && config.narrationBackend === 'slingshot') {
+  if (
+    mode === 'walking' &&
+    config.narrationBackend === 'slingshot' &&
+    !opts?.forceLocal
+  ) {
     await narrateViaSlingshot(location);
     return;
   }
