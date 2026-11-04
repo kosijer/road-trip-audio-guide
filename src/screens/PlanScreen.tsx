@@ -19,7 +19,7 @@ import {
   applyTasteForPoi,
   type ExposureOutcome,
 } from '../preferences';
-import { getFreshLocation } from '../services/location';
+import { geocodeQuery } from '../services/geocode';
 import {
   INSPIRE_BUDGET_MAX,
   INSPIRE_BUDGET_MIN,
@@ -27,6 +27,7 @@ import {
   runInspireLoop,
   type InspireMode,
 } from '../services/inspireLoop';
+import { getFreshLocation } from '../services/location';
 import { runPrefetch } from '../services/routePrefetch';
 import {
   clearPrefetchBatch,
@@ -173,7 +174,7 @@ export function PlanScreen({ status, setStatus, busy }: Props) {
     try {
       const trimmed = inspireOrigin.trim();
       let label = trimmed;
-      let point;
+      let point: GeoPoint;
       const coord = trimmed.match(
         /^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/,
       );
@@ -182,14 +183,22 @@ export function PlanScreen({ status, setStatus, busy }: Props) {
           latitude: Number(coord[1]),
           longitude: Number(coord[2]),
         };
-      } else {
+      } else if (!trimmed) {
         const here = await getFreshLocation();
         point = here;
-        setUserLocation(here);
-        if (!trimmed) {
-          label = `${here.latitude.toFixed(4)}, ${here.longitude.toFixed(4)}`;
+        label = `${here.latitude.toFixed(4)}, ${here.longitude.toFixed(4)}`;
+      } else {
+        const geo = await geocodeQuery(trimmed);
+        if (!geo) {
+          throw new Error('geocode_failed');
         }
+        point = {
+          latitude: geo.latitude,
+          longitude: geo.longitude,
+        };
+        label = geo.formattedAddress;
       }
+      setUserLocation(point);
 
       const { stopCount, cacheCount, batch: nextBatch } = await runInspireLoop({
         originLabel: label,
@@ -212,7 +221,9 @@ export function PlanScreen({ status, setStatus, busy }: Props) {
     } catch (error) {
       console.warn('inspire failed', error);
       const msg = error instanceof Error ? error.message : '';
-      if (msg.includes('location')) {
+      if (msg.includes('geocode_failed')) {
+        setStatus(prev => ({ ...prev, message: t('inspireOriginFailed') }));
+      } else if (msg.includes('location')) {
         setStatus(prev => ({ ...prev, message: t('locationFailed') }));
       } else if (
         msg.includes('network_failed') ||

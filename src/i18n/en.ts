@@ -26,6 +26,7 @@ export const en: Record<StringKey, string> = {
   inspirePrefetch: 'Caching places along the loop…',
   inspireDone: 'Loop ready — {count} stops (plus nearby cache for Drive).',
   inspireEmpty: 'Not enough interesting places nearby for that budget.',
+  inspireOriginFailed: 'Couldn’t find that start place. Try another name.',
   inspireStops: '{count} stops',
   inspireOriginPlaceholder: 'Start (optional — empty = here)',
   aroundMore: 'More nearby',

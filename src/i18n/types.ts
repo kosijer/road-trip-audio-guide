@@ -24,6 +24,7 @@ export type StringKey =
   | 'inspirePrefetch'
   | 'inspireDone'
   | 'inspireEmpty'
+  | 'inspireOriginFailed'
   | 'inspireStops'
   | 'inspireOriginPlaceholder'
   | 'aroundMore'

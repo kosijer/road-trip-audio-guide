@@ -26,6 +26,7 @@ export const sr: Record<StringKey, string> = {
   inspirePrefetch: 'Keširam mesta duž petlje…',
   inspireDone: 'Petlja spremna — {count} stajališta (plus keš u okolini za Drive).',
   inspireEmpty: 'Nema dovoljno zanimljivih mesta u okolini za taj budžet.',
+  inspireOriginFailed: 'Ne mogu da nađem taj start. Probaj drugi naziv.',
   inspireStops: '{count} stajališta',
   inspireOriginPlaceholder: 'Start (opciono — prazno = ovde)',
   aroundMore: 'Još u okolini',
