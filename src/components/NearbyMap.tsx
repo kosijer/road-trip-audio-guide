@@ -31,6 +31,13 @@ type Props = {
 const DEFAULT_DELTA = 0.02;
 const EDGE = { top: 40, right: 40, bottom: 40, left: 40 };
 
+function markersSignature(markers: MapMarker[]): string {
+  return markers
+    .filter(isPlausibleLocation)
+    .map(m => `${m.id}:${m.latitude.toFixed(5)},${m.longitude.toFixed(5)}`)
+    .join('|');
+}
+
 function regionForPoints(points: GeoPoint[]): Region | null {
   if (points.length === 0) {
     return null;
@@ -115,21 +122,27 @@ export function NearbyMap({
     };
   }, [cameraMode, center, fitPoints, radiusM]);
 
+  const markerKey = markersSignature(markers);
+  const lastFitKey = useRef<string>('');
+
   useEffect(() => {
-    if (!mapRef.current || fitPoints.length === 0) {
+    if (!mapRef.current || fitPoints.length === 0 || !region) {
       return;
     }
-    if (fitPoints.length >= 2) {
+    // Refit when the found POI set changes; otherwise nudge along `region`
+    // (includes nearby POI while following) without re-running fitToCoordinates.
+    const fitKey = `${markerKey}|${fitPoints.length >= 2 ? 'poi' : 'you'}`;
+    if (fitPoints.length >= 2 && fitKey !== lastFitKey.current) {
+      lastFitKey.current = fitKey;
       mapRef.current.fitToCoordinates(fitPoints, {
         edgePadding: EDGE,
         animated: true,
       });
       return;
     }
-    if (region) {
-      mapRef.current.animateToRegion(region, 350);
-    }
-  }, [fitPoints, region]);
+    lastFitKey.current = fitKey;
+    mapRef.current.animateToRegion(region, 350);
+  }, [fitPoints, markerKey, region]);
 
   const usableCenter =
     center && isPlausibleLocation(center) ? center : null;
@@ -172,12 +185,14 @@ export function NearbyMap({
         {usableMarkers.map(marker => (
           <Marker
             key={marker.id}
+            identifier={marker.id}
             coordinate={{
               latitude: marker.latitude,
               longitude: marker.longitude,
             }}
             title={marker.title}
             pinColor={colors.go}
+            tracksViewChanges={false}
           />
         ))}
       </MapView>

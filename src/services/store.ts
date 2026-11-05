@@ -416,17 +416,32 @@ export async function getStatus(): Promise<TripStatus> {
   return raw ? ({ ...emptyStatus(), ...(JSON.parse(raw) as TripStatus) }) : emptyStatus();
 }
 
+/**
+ * Serialize status writes. Drive GPS ticks and the teaser/narration queue both
+ * patch status; concurrent read-merge-write was dropping upcomingPoi /
+ * lastPoiMarkers so the Drive map lost the found-place pin.
+ */
+let statusWriteChain: Promise<unknown> = Promise.resolve();
+
 export async function setStatus(patch: Partial<TripStatus>): Promise<TripStatus> {
-  const current = await getStatus();
-  const next: TripStatus = { ...current, ...patch };
-  // Drop keys explicitly cleared with `undefined` so endTrip / resets stick.
-  for (const key of Object.keys(patch) as (keyof TripStatus)[]) {
-    if (patch[key] === undefined) {
-      delete next[key];
+  const run = async (): Promise<TripStatus> => {
+    const current = await getStatus();
+    const next: TripStatus = { ...current, ...patch };
+    // Drop keys explicitly cleared with `undefined` so endTrip / resets stick.
+    for (const key of Object.keys(patch) as (keyof TripStatus)[]) {
+      if (patch[key] === undefined) {
+        delete next[key];
+      }
     }
-  }
-  await AsyncStorage.setItem(KEY.status, JSON.stringify(next));
-  return next;
+    await AsyncStorage.setItem(KEY.status, JSON.stringify(next));
+    return next;
+  };
+  const written = statusWriteChain.then(run, run);
+  statusWriteChain = written.then(
+    () => undefined,
+    () => undefined,
+  );
+  return written;
 }
 
 export async function getVisitHistory(): Promise<VisitRecord[]> {

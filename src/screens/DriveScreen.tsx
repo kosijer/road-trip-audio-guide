@@ -99,6 +99,8 @@ export function DriveScreen({
   const [batch, setBatch] = useState<PrefetchBatch | null>(null);
   const [mood, setMood] = useState<SessionMood>(null);
   const [skipBusy, setSkipBusy] = useState(false);
+  /** Sticky found-place pin for this trip — survives brief status write races. */
+  const [tripPin, setTripPin] = useState<SuggestedPlace | null>(null);
 
   useEffect(() => {
     void getSessionState().then(s => setMood(s.mood));
@@ -164,33 +166,49 @@ export function DriveScreen({
     Boolean(upcoming) &&
     (status.drivePhase === 'teaser' || status.drivePhase === 'hold');
 
+  useEffect(() => {
+    if (!status.tripActive) {
+      setTripPin(null);
+      return;
+    }
+    if (upcoming && isPlausibleLocation(upcoming)) {
+      setTripPin({
+        id: upcoming.id,
+        title: upcoming.title,
+        latitude: upcoming.latitude,
+        longitude: upcoming.longitude,
+        distanceM: upcoming.distanceM,
+      });
+      return;
+    }
+    const focus = status.lastPoiMarkers?.[0];
+    if (focus && isPlausibleLocation(focus)) {
+      setTripPin({
+        id: focus.id,
+        title: focus.title,
+        latitude: focus.latitude,
+        longitude: focus.longitude,
+      });
+    }
+  }, [status.lastPoiMarkers, status.tripActive, upcoming]);
+
   const suggested = useMemo((): SuggestedPlace | null => {
     if (!status.tripActive) {
       // Idle Drive: map may still show plan cache pins, but never a stale
       // “Latest place” card from a previous session.
       return nearestFromBatch(batch, mapCenter);
     }
-    if (upcoming) {
-      return {
-        id: upcoming.id,
-        title: upcoming.title,
-        latitude: upcoming.latitude,
-        longitude: upcoming.longitude,
-        distanceM: upcoming.distanceM,
-      };
-    }
-    const focus = status.lastPoiMarkers?.[0];
-    if (!focus) {
+    if (!tripPin) {
       return null;
     }
     const distanceM = mapCenter
       ? haversineM(mapCenter, {
-          latitude: focus.latitude,
-          longitude: focus.longitude,
+          latitude: tripPin.latitude,
+          longitude: tripPin.longitude,
         })
-      : undefined;
-    return { ...focus, distanceM };
-  }, [batch, mapCenter, status.lastPoiMarkers, status.tripActive, upcoming]);
+      : tripPin.distanceM;
+    return { ...tripPin, distanceM };
+  }, [batch, mapCenter, status.tripActive, tripPin]);
 
   const markers = useMemo(
     () =>
@@ -238,7 +256,7 @@ export function DriveScreen({
     }
   }, [setStatus, skipBusy]);
 
-  const focus = status.lastPoiMarkers?.[0];
+  const focus = status.lastPoiMarkers?.[0] ?? tripPin ?? undefined;
   // Only show story after a Drive full narration this trip — not Around leftovers.
   const showNarrated = Boolean(
     status.lastNarration &&
