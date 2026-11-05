@@ -1,12 +1,21 @@
 # Along — BYOP PowerPoint (2 slides)
 
 Copy-paste source for the Engineering Exchange **Bring Your Own Project** deck.  
-Layout: **¾ main + ¼ sidebar** on both slides.
+Layout: **¾ main + ¼ sidebar** on both slides.  
+Audience: **reviewers** (self-explanatory; you may not present live).
 
 Related: voiceover / YouTube / demo VO → [`pitch-narration-byop.md`](./pitch-narration-byop.md)  
 Screen capture detail → [`screens/README.md`](./screens/README.md)
 
-**Last reviewed:** 2026-11-04 (aligned with current app: Around / Drive / Plan / History, Slingshot on Around, Drive sim gated to active trips, open POI sources = Wikipedia + OSM + Wikidata).
+**Submission assets** (kept out of repo root):
+
+| File | Path |
+|------|------|
+| Slides (PDF) | [`byop/Slides.pdf`](./byop/Slides.pdf) |
+| Demo video | [`byop/Along-demo.mp4`](./byop/Along-demo.mp4) |
+| Concept trailer | [`byop/Along-trailer.mp4`](./byop/Along-trailer.mp4) |
+
+**Last reviewed:** 2026-11-05
 
 ---
 
@@ -14,136 +23,192 @@ Screen capture detail → [`screens/README.md`](./screens/README.md)
 
 | Slide | Job | Main (¾) | Sidebar (¼) |
 |-------|-----|----------|-------------|
-| **1** | Problem → product → modes | Idea + 3 screenshots (Around / Drive / History) | Stack overview |
-| **2** | How it thinks + Sapient angle | Pipeline flow + 1–2 hero shots | Deep tech + Slingshot callout |
+| **1** | What is Along + 3 live modes | Around / Drive / History phones + short intros | Built with (logo + role) |
+| **2** | How it thinks + Plan + Sapient | Pipeline diagram **on top** + Plan (+ supporting) phones | Slingshot + engineering notes |
 
-Judges skim slides after the video — Slide 1 sells *what*, Slide 2 sells *how / why Sapient*.
+Slide 1 = product. Slide 2 = engineering + the mode Slide 1 skipped (**Plan**).
 
----
-
-## Slide 1 — “Missed road → Along”
-
-**Title:** `Along — the guide that rides with you`  
-**Subtitle:** `Personalized spoken stops along A→B. Maps navigates. Along narrates.`
-
-**Main (¾) — three phone frames:**
-
-1. **Around** — “What’s near me?” one-tap story  
-2. **Drive** — “Coming up” teaser before you pass it  
-3. **History** — 👍/👎 taste that personalizes the next trip  
-
-**Caption under the trio:**  
-`Not navigation. An ambient audio companion for driving & walking.`
-
-**Sidebar (¼) — “Built with”:**
-
-- React Native (Android)
-- Google Gemini
-- Sapient Slingshot
-- Cloudflare Clef (optional)
-- Wikipedia / OpenStreetMap / Wikidata
-- Google Places + Maps SDK
-- Open-Meteo (weather)
-- On-device TTS
-- Preference learning (👍/👎)
-
-**Screenshot checklist:**
-
-| Shot | Screen | Capture this | Why |
-|------|--------|--------------|-----|
-| A | **Around** | Map + “Around me” + story card | Instant “what is it” |
-| B | **Drive** | Active trip + **Coming up** (title, ETA, Skip) | Differentiator vs maps |
-| C | **History** | Past item + 👍/👎 | Personalization proof |
-
-**Capture tips:** Settings → debug location (London / Notting Hill / Belgrade); enable simulate motion only for the Drive shot (Start Trip); crop status-bar noise; same phone frame size on all three.
-
-**Headline options (pick one):**
-
-- `Hear what you’re missing — while you can still turn`
-- `A to B shouldn’t mean forgetting everything in between`
+**Do not put the pipeline in the sidebar** — a ¼ column crushes a flow diagram. Keep the same phone rhythm as Slide 1 in the lower main; put the diagram in a full-width band above those phones.
 
 ---
 
-## Slide 2 — “How Along decides what to say”
+## Slide 1 — “Missed road → Along” *(as built)*
 
-**Title:** `From GPS → story → voice`  
-**Subtitle:** `Live product pipeline — with Slingshot as an orchestrated narration path`
+**Header bar**
 
-**Main (¾) — horizontal flow:**
+- Left: logo + `Along: the guide that rides with you.`
+- Center: `A to B shouldn’t mean forgetting everything in between.`
+- Right: `Watch trailer` → YouTube (concept / pitch cut)
+
+**Main**
+
+- Line under header: `Personalized spoken stops along A→B. Maps navigates. Along narrates.`
+- Three phones + one short paragraph each (optional readers):
+
+**Around** — “What’s near me?” one-tap story  
+
+> When you’re walking or stopped, one tap answers “what’s interesting near me?” Along finds nearby places, picks one worth your time, and speaks a short story — with optional extras listed quietly if you want more.
+
+**Drive** — “Coming up” teaser before you pass it  
+
+> On the move, Along looks ahead on your heading — not behind you. You get a Coming up teaser in time to decide, then the full spoken story before you’ve already passed. That’s the stop normal navigation never pitches.
+
+**History** — thumbs-up/down taste that personalizes the next trip  
+
+> Every narration lands here. Thumbs up or down feed a taste model, so the next trip skews toward what you actually like — not a generic tourist list.
+
+- Footer: `Not navigation. An ambient audio companion for driving & walking.`
+
+**Sidebar — “Built with:”** (logo + one-line role)
+
+| Item | Role line |
+|------|-----------|
+| React Native | Mobile app |
+| Gemini | writes spoken scripts |
+| Sapient Slingshot | orchestrates Around narration |
+| Clef | helps pick which place |
+| Wikipedia / Wikidata / OSM | discover places |
+| Open-Meteo | weather caveats |
+| Google Places / Maps | map + hours |
+
+**Screenshot checklist (Slide 1)**
+
+| Shot | Capture |
+|------|---------|
+| Around | Map + Around me + story card |
+| Drive | **Coming up** card (title / ETA / Skip) — not “looking for places…” |
+| History | List + 👍/👎 |
+
+---
+
+## Slide 2 — recommended layout
+
+### Why this layout (vs “3 phones + diagram in sidebar”)
+
+- Reviewers already saw Around / Drive / History on Slide 1 — don’t repeat the same trio.
+- The **pipeline is the Slide 2 hero**; it needs horizontal space → **main band**, not sidebar.
+- **Plan** belongs here: browse / inspire / A→B cache, feeds taste, does **not** narrate.
+- Sidebar = **Slingshot + engineering callouts** (Sapient product proof for Q7/Q8).
+
+### Wireframe
+
+```
+┌──────────────────────────────────────────────┬────────────────────┐
+│ Header (same pattern as Slide 1)             │                    │
+├──────────────────────────────────────────────┤  SIDEBAR           │
+│ Title + one-line subtitle                    │  Sapient Slingshot │
+│                                              │  + engineering     │
+│ [==== PIPELINE DIAGRAM (full main width) ====]│  notes             │
+│                                              │                    │
+│  [Plan phone]  [Drive story]  [Around mood]  │                    │
+│   + paragraph   + paragraph    + paragraph   │                    │
+│                                              │                    │
+│ Footer: Plan ≠ Drive ≠ Around (one line)     │                    │
+└──────────────────────────────────────────────┴────────────────────┘
+```
+
+If three phones feel tight under the diagram, drop the third phone and keep **Plan + Drive full-story** only; diagram still stays in main.
+
+---
+
+## Slide 2 — copy-paste content
+
+**Header bar**
+
+- Left: logo + `Along: how it decides what to say`
+- Center: `Real pipeline. Real Slingshot step. Real app.`
+- Right: optional `Watch demo` if you host the screen-recording separately (else omit)
+
+**Main — title / subtitle**
+
+- Title: `From GPS → story → voice`
+- Subtitle: `Live product path — with Sapient Slingshot as an orchestrated narration option for Around`
+
+### Pipeline diagram (main, top band)
+
+Draw five boxes left → right (arrows between):
 
 ```
 Location / heading
-  → Discover POIs (Wikipedia + OSM + Wikidata)
-  → Rank / decide (taste + optional Clef)
-  → Write script (Gemini)  OR  Slingshot workflow*
-  → Speak (on-device TTS)
+  → Discover POIs
+       (Wikipedia + OSM + Wikidata)
+  → Rank / decide
+       (taste + optional Clef)
+  → Write script
+       Gemini  |  OR Slingshot*
+  → Speak
+       (on-device TTS)
 ```
 
-\*Footnote:  
-`*Around can run via Sapient Slingshot: weather → pick → details → narration → package`
+Footnote under the diagram (small):  
+`*Around can run via Sapient Slingshot: weather → pick → details → narration → package. Drive stays on the local path (latency).`
 
-**Extra phone shots:**
+Optional visual: highlight the **Write script** box with a split — left “Local · Gemini”, right “Slingshot · workflow”.
 
-| Shot | Screen | Capture this | Why |
-|------|--------|--------------|-----|
-| D | **Drive** | Coming up → full story (hero) | Completes the Drive loop |
-| E | **Around** (optional) | Mood radios + result | “Taste now”, not only History |
+### Three columns (same rhythm as Slide 1)
 
-If only one extra shot: pick **D**.
+**Plan** — browse before you move  
 
-**Sidebar (¼) — “Engineering notes”:**
+> At home or on hotel Wi‑Fi: suggest a timed loop, or prefetch places along A→B. Plan is browsing and caching — it feeds taste with 👍/👎, but it does not speak stories. Drive still decides what’s ahead from live heading; Plan is optional fuel, not a forced stop list.
 
-- **Slingshot:** workflow orchestration for Around narration (demo track)
-- **Clef:** optional decide *which* POI to narrate
-- **Gemini:** spoken script, not a wiki dump
-- **Taste:** preference ranking from 👍/👎 (History + More nearby / Plan)
-- **Drive ≠ Plan:** heading + live discovery; Plan is optional fuel
-- **Guardrails:** weather caveats, hours when available, trip LLM budget
+**Drive** — teaser → full story  
 
-Highlight **Slingshot** (accent / “Publicis Sapient”) so Q7/Q8 is obvious.
+> After Coming up, Along can deliver the full narration while you’re still approaching. Same discovery → rank → script → TTS path as Around, keyed to motion and heading so the story arrives before the missed-road moment.
 
-**Headline options:**
+**Around** — mood + spoken now  
 
-- `AI that picks, writes, and speaks — in time to detour`
-- `Real pipeline. Real Slingshot step. Real app.`
+> Session mood (History / Nature / Surprise) steers what “interesting” means right now. This is also the path that can call **Slingshot** instead of the local Gemini-only write step — same app UI, orchestrated backend.
+
+*(If only two phones: keep **Plan** + **Drive**; fold the Around/Slingshot sentence into the sidebar.)*
+
+**Footer (one line)**  
+`Plan ≠ commitment to drive · Drive ≠ Plan queue · Around ≠ Drive`
+
+### Sidebar — “Engineering notes” / Slingshot
+
+Lead with a short Slingshot block (accent / Sapient branding):
+
+**Sapient Slingshot**  
+Orchestrates the Around narration chain as a real workflow inside the product — not a slideware demo.  
+`weather → pick → details → narration → package`
+
+Then bullets:
+
+- **Gemini** — spoken script (guide tone, not a wiki dump)
+- **Clef** — optional: decide *which* POI from a shortlist
+- **Taste** — 👍/👎 from History, More nearby, and Plan
+- **Guardrails** — weather caveats, opening hours when known, per-trip LLM budget
+- **Dual track** — `NARRATION_BACKEND=local|slingshot`; Drive always local
 
 ---
 
-## Layout sketch
+## Screenshot checklist (Slide 2)
 
-```
-┌────────────────────────────────┬────────────┐
-│  Title + one-line pitch        │  SIDEBAR   │
-│                                │  tech list │
-│  [screens / flow]              │  (¼ width) │
-│                                │            │
-│  short captions only           │            │
-└────────────────────────────────┴────────────┘
-```
+| Shot | Screen | Capture this | Why |
+|------|--------|--------------|-----|
+| F | **Plan** | Loop result **or** A→B list on map + 👍/👎 | New mode vs Slide 1 |
+| D | **Drive** | Full story card after Coming up (or Coming up + story composite) | Completes Drive loop |
+| E | **Around** | Mood radios visible + story (or More nearby) | Session taste + Slingshot-capable surface |
 
-Keep body copy to **headlines + labels**. Video carries emotion; slides carry clarity.
+**Capture tips:** Plan needs a completed Suggest a loop or corridor prefetch. Same phone frame size as Slide 1. Don’t show Google branding in screenshots beyond the Maps SDK map tiles you already use in-app.
 
 ---
 
 ## What to avoid
 
-- Don’t put **Plan** as a fourth phone on Slide 1 (crowds the story; Plan is secondary for judges)
-- Don’t dump full narration text on slides
-- Don’t make both sidebars identical — Slide 1 = stack inventory, Slide 2 = how / Sapient
+- Repeating the exact Around / Drive / History trio on Slide 2
+- Putting the full pipeline in the ¼ sidebar
+- Long narration text under phones (one short paragraph max — same as Slide 1)
+- Making both sidebars logo grids — Slide 1 = stack inventory; Slide 2 = Slingshot + how
 
 ---
 
-## Freshness notes (vs earlier chat draft)
-
-Still accurate overall. Small updates applied here:
+## Freshness notes
 
 | Topic | Status |
 |-------|--------|
-| Modes Around / Drive / History | Current |
-| Slingshot = Around path | Current |
-| POI sources named (Wiki / OSM / Wikidata) | Clarified (was “open knowledge sources” in VO only) |
-| Clef optional | Clarified |
-| Drive simulate motion | Tip: only during active Drive trip |
-| Debug pins | London / Notting Hill / Belgrade / Westminster |
-| Plan | Still omit from Slide 1 phones (correct) |
-| Weather | Open-Meteo still right; header weather icon exists but optional on slides |
+| Slide 1 = Around / Drive / History + labeled stack | As built 2026-11-05 |
+| Plan on Slide 2, not Slide 1 | Intentional |
+| Slingshot = Around path; Drive local | Current |
+| Plan = browse/cache, no Gemini narration on Plan itself | Current |
+| Pipeline diagram in main | Recommended |
